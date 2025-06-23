@@ -10,19 +10,23 @@ Scripts for loading mesh or image data into the "engine".
 
 ### 🎨 Shaders
 Shaders are organized in the following format:  
+```
 ─┬─ Shaders  
  └─┬─ ShaderName  
    ├─── vertex.glsl  
    └─── fragment.glsl  
+```
 
 ### 🧱 Objects
-Object data is structured as:  
+Object data is structured as:
+```
 ─┬─ Objects  
  └─┬─ ObjectName  
    └─┬─ Textures  
      ├─── color.png  
      ├─── normal.png  
      └─── specular.png  
+```
 
 ---
 
@@ -32,6 +36,7 @@ Object data is structured as:
 - Objects require at least a `color.png` texture to be valid.
 
 ## 📁 Example Directory Layout
+```
 OpenTK Lighting  
 ├─┬─ Loaders  
 │ ├─── OBJ_Parser.cs  
@@ -46,6 +51,6 @@ OpenTK Lighting
 │ └─┬─ Base  
 │   ├─── vertex.glsl  
 │   └─── fragment.glsl  
-
+```
 
 ---
