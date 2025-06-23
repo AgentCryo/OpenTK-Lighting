@@ -3,16 +3,8 @@ using OpenTK;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Graphics.OpenGL4;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
-using System.Drawing;
-using System.Reflection;
-using System.Diagnostics;
 using OpenTK_Lighting.Loaders;
 using Image = OpenTK_Lighting.Loaders.Image;
 
