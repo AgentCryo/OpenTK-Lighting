@@ -13,7 +13,7 @@ namespace OpenTK_Lighting.ObjectTypes
 		public string Name;
 		public Vector3 Position = Vector3.Zero;
 
-		public bool CastShadows = true;
+		public bool Active = true;
 		public int ShadowMapResolution = 2048;
 		public Vector3 Color = Vector3.One;
 		public float Intensity = 1.0f;

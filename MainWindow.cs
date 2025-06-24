@@ -76,6 +76,7 @@ namespace OpenTK_Lighting
 
 		public LightObject light1 = new("light1");
 		public LightObject light2 = new("light2");
+		public LightObject light3 = new("light3");
 		protected override void OnLoad()
 		{
 			base.OnLoad();
@@ -314,12 +315,15 @@ namespace OpenTK_Lighting
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\fragment.glsl"
 			);
 
-			light1.Position = new Vector3(0, 2.5f, -5);
+			light1.Position = new Vector3(0, 2.5f, 5);
 			light1.InitShadowResources();
 			pointLights.Add(light1);
-			light2.Position = new Vector3(2.5f, 2.5f, -5);
+			light2.Position = new Vector3(1f, 2.5f, 5);
 			light2.InitShadowResources();
 			pointLights.Add(light2);
+			light3.Position = new Vector3(2f, 2.5f, 5);
+			light3.InitShadowResources();
+			pointLights.Add(light3);
 			#endregion
 
 			#region Base Init
@@ -388,7 +392,6 @@ namespace OpenTK_Lighting
 		private double _lastTime;
 		private int _frameCount;
 		private float _fps;
-		private float _memoryUsageMB;
 		private int _drawCalls;
 		protected override void OnRenderFrame(FrameEventArgs args)
 		{
@@ -403,7 +406,7 @@ namespace OpenTK_Lighting
 
 			foreach (var light in pointLights)
 			{
-				if (!light.CastShadows || !useShadows)
+				if (!light.Active || !useShadows)
 					continue;
 
 				GL.Viewport(0, 0, light.ShadowMapResolution, light.ShadowMapResolution);
@@ -420,7 +423,10 @@ namespace OpenTK_Lighting
 				GL.Clear(ClearBufferMask.DepthBufferBit);
 
 				foreach (var obj in _objects)
+				{
 					obj.Render(_shadowShader, 6);
+					_drawCalls++;
+				}
 
 				GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 			}
@@ -448,6 +454,8 @@ namespace OpenTK_Lighting
 
 				GL.Uniform3(_baseShader.GetUniform($"lightColors[{i}]"), ref light.Color);
 				GL.Uniform1(_baseShader.GetUniform($"lightIntensities[{i}]"), light.Intensity);
+
+				GL.Uniform1(_baseShader.GetUniform($"lightActives[{i}]"), light.Active ? 1 : 0);
 			}
 
 			GL.Uniform3(_baseShader.GetUniform("uLightPos"), ref pointLightPosition);
@@ -531,6 +539,8 @@ namespace OpenTK_Lighting
 				ImGui.Checkbox("Use Shadows", ref useShadows);
 				ImGui.Unindent();
 			}
+
+			#region Objects
 			if (ImGui.CollapsingHeader("Objects"))
 			{
 				ImGui.Indent();
@@ -614,10 +624,10 @@ namespace OpenTK_Lighting
 						if (useColorMaps != true || obj.TextureCoordinants == null) {
 							ImGui.PushItemWidth(200);
 							ImGui.Indent();
-							var color4 = new System.Numerics.Vector4(obj.baseColor.X, obj.baseColor.Y, obj.baseColor.Z, 1.0f);
-							if (ImGui.ColorPicker4($"Color Picker##{obj.Name}", ref color4))
+							var color3 = new System.Numerics.Vector3(obj.baseColor.X, obj.baseColor.Y, obj.baseColor.Z);
+							if (ImGui.ColorEdit3($"Color##{obj.Name}", ref color3))
 							{
-								obj.baseColor = new Vector3(color4.X, color4.Y, color4.Z);
+								obj.baseColor = (Vector3)color3;
 							}
 							ImGui.Unindent();
 							ImGui.PopItemWidth();
@@ -627,6 +637,9 @@ namespace OpenTK_Lighting
 				}
 				ImGui.Unindent();
 			}
+			#endregion
+
+			#region Lights
 			if (ImGui.CollapsingHeader("Lights"))
 			{
 				ImGui.Indent();
@@ -658,7 +671,7 @@ namespace OpenTK_Lighting
 						ImGui.DragFloat($"##PosZ{light.Name}", ref light.Position.Z, 0.05f, float.MinValue, float.MaxValue, "%.2f");
 						#endregion
 
-						ImGui.Checkbox($"Cast Shadows##{light.Name}", ref light.CastShadows);
+						ImGui.Checkbox($"Cast Shadows##{light.Name}", ref light.Active);
 						System.Numerics.Vector3 lightColor = (System.Numerics.Vector3)light.Color;
 						if (ImGui.ColorEdit3($"Color##{light.Name}", ref lightColor))
 						{
@@ -670,6 +683,8 @@ namespace OpenTK_Lighting
 				}
 				ImGui.Unindent();
 			}
+			#endregion
+
 			ImGui.End();
 		}
 		#endregion

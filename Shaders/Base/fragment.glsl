@@ -106,10 +106,9 @@ vec3 GetMaterialNormal(Material mat, vec2 texCoords, mat3 TBN) {
 }
 
 float ambientStrength = 0.1;
-//vec3 lightColor = vec3(1.0,1.0,1.0);
 uniform vec3 lightColors[MAX_POINT_LIGHTS];
 uniform float lightIntensities[MAX_POINT_LIGHTS];
-
+uniform bool lightActives[MAX_POINT_LIGHTS];
 void main()
 {
     vec3 norm = material.useNormalTexture
@@ -123,6 +122,9 @@ void main()
 
     for (int i = 0; i < numPointLights; ++i)
     {
+        if (!lightActives[i])
+        continue;
+
         vec3 lightPos = lightPositions[i];
         vec3 lightColor = lightColors[i] * lightIntensities[i];
         vec3 lightDir = normalize(lightPos - FragPos);
