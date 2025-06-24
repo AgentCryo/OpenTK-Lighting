@@ -315,13 +315,21 @@ namespace OpenTK_Lighting
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\fragment.glsl"
 			);
 
-			light1.Position = new Vector3(0, 2.5f, 5);
+			light1.Position = new Vector3(0, 4, 3);
+			light1.Color = new Vector3(1, 0, 0);
+			light1.Intensity = 1.5f;
 			light1.InitShadowResources();
 			pointLights.Add(light1);
-			light2.Position = new Vector3(1f, 2.5f, 5);
+
+			light2.Position = new Vector3(0.25f, 4, 3);
+			light2.Color = new Vector3(0, 1, 0);
+			light2.Intensity = 1.5f;
 			light2.InitShadowResources();
 			pointLights.Add(light2);
-			light3.Position = new Vector3(2f, 2.5f, 5);
+
+			light3.Position = new Vector3(0.5f, 4, 3);
+			light3.Color = new Vector3(0, 0, 1);
+			light3.Intensity = 1.5f;
 			light3.InitShadowResources();
 			pointLights.Add(light3);
 			#endregion

@@ -69,7 +69,7 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, samplerCubeShadow cubeMap)
     {
         vec3 sampleDir = normalize(fragToLight + sampleOffsetDirections[i] * diskRadius);
         float sample = texture(cubeMap, vec4(sampleDir, compareDepth));
-        shadow += 1.0 - sample; // 1.0 if lit, 0.0 if in shadow
+        shadow += 1.0 - sample; // 1.0 if lit, 0.0 if in shadow;
     }
 
     shadow /= float(samples);
