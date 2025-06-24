@@ -39,6 +39,12 @@ float remapDepth(float x) {
     return (x - 0.971) / (1.0 - 0.971);
 }
 
+#define MAX_POINT_LIGHTS 8
+
+uniform samplerCube shadowMaps[MAX_POINT_LIGHTS];
+uniform vec3 lightPositions[MAX_POINT_LIGHTS];
+uniform int numPointLights;
+
 vec3 sampleOffsetDirections[20] = vec3[]
 (
    vec3( 1,  1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1,  1,  1), 
@@ -48,28 +54,29 @@ vec3 sampleOffsetDirections[20] = vec3[]
    vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
 ); 
 const float farPlane = 1000.0;
-float ShadowCalculation(vec3 fragPos, vec3 norm)
+float ShadowCalculation(vec3 fragPos, vec3 lightPos, samplerCube cubeMap)
 {
-    vec3 fragToLight = fragPos - uLightPos;
-    float currentDepth = distance(fragPos, uLightPos);
+    vec3 fragToLight = fragPos - lightPos;
+    float currentDepth = length(fragToLight);
 
-    float bias = max(0.015 * (1.0 - dot(norm, normalize(fragToLight))), 0.002);
+    float bias = max(0.015 * (1.0 - dot(normalize(vNormal), normalize(fragToLight))), 0.002);
 
     float shadow = 0.0;
-    int samples  = 20;
+    int samples = 20;
     float viewDistance = length(viewPos - fragPos);
-    float diskRadius = (1.0 + (viewDistance / farPlane)) / 75.0;  
-    for(int i = 0; i < samples; ++i)
+    float diskRadius = (1.0 + (viewDistance / farPlane)) / 75.0;
+
+    for (int i = 0; i < samples; ++i)
     {
-        float closestDepth = texture(shadowMap, fragToLight + sampleOffsetDirections[i] * diskRadius).r;
-        closestDepth *= farPlane;   // undo mapping [0;1]
-        if(currentDepth - bias > closestDepth)
+        float closestDepth = texture(cubeMap, fragToLight + sampleOffsetDirections[i] * diskRadius).r;
+        closestDepth *= farPlane;
+        if (currentDepth - bias > closestDepth)
             shadow += 1.0;
     }
-    shadow /= float(samples);
 
-    return shadow;
+    return shadow / float(samples);
 }
+
 
 vec3 GetMaterialColor(Material mat, vec2 texCoords) {
     if (mat.useColorTexture) {
@@ -99,37 +106,51 @@ vec3 GetMaterialNormal(Material mat, vec2 texCoords, mat3 TBN) {
 }
 
 float ambientStrength = 0.1;
-vec3 lightColor = vec3(1.0,1.0,1.0);
+//vec3 lightColor = vec3(1.0,1.0,1.0);
+uniform vec3 lightColors[MAX_POINT_LIGHTS];
+uniform float lightIntensities[MAX_POINT_LIGHTS];
+
 void main()
 {
-    vec3 lightDir = normalize(uLightPos - FragPos);  
-    vec3 viewDir = -normalize(uCameraPos - FragPos);
+    vec3 norm = material.useNormalTexture
+        ? GetMaterialNormal(material, TexCoords, TBN)
+        : normalize(vNormal);
 
-    vec3 norm = vec3(0);
-    if(material.useNormalTexture) {
-        norm = GetMaterialNormal(material, TexCoords, TBN);
-    } else {
-        norm = normalize(vNormal);
+    vec3 viewDir = normalize(uCameraPos - FragPos);
+    vec3 baseColor = GetMaterialColor(material, TexCoords);
+    vec3 specularMap = GetMaterialSpecular(material, TexCoords);
+    vec3 finalLighting = vec3(0.0);
+
+    for (int i = 0; i < numPointLights; ++i)
+    {
+        vec3 lightPos = lightPositions[i];
+        vec3 lightColor = lightColors[i] * lightIntensities[i];
+        vec3 lightDir = normalize(lightPos - FragPos);
+        vec3 reflectDir = reflect(-lightDir, norm);
+
+        // Ambient
+        vec3 ambient = ambientStrength * lightColor;
+
+        // Diffuse
+        float diff = max(dot(norm, lightDir), 0.0);
+        vec3 diffuse = diff * lightColor;
+
+        // Specular
+        float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+        float specularStrength = length(specularMap) / sqrt(3.0); // average of RGB
+        vec3 specular = specularStrength * spec * lightColor;
+
+        // Shadow
+        float shadow = ShadowCalculation(FragPos, lightPos, shadowMaps[i]);
+
+        // Combine
+        vec3 lighting = ambient + (1.0 - (useShadows ? shadow : 0.0)) * (diffuse + specular);
+        finalLighting += lighting;
     }
-    vec3 reflectDir = reflect(lightDir, norm);  
 
-    vec3 ambient = ambientStrength * lightColor;
+    vec3 result = finalLighting * baseColor;
 
-    float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = diff * lightColor;
-
-    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-    float specularIntensity = (length(GetMaterialSpecular(material, TexCoords).rgb) / sqrt(3.0));
-    vec3 specular = specularIntensity * spec * lightColor;
-
-    float shadow = ShadowCalculation(FragPos, norm);
-
-    vec3 lighting = ambient + (1.0 - (useShadows ? shadow : 0.0)) * (diffuse + specular);
-    vec3 result = lighting * GetMaterialColor(material, TexCoords);
-
-    if(!normalView) {
-        FragColor = vec4(result, 1.0);
-    } else {
-        FragColor = vec4((norm + 1.0) * 0.5, 1.0);
-    }
+    FragColor = normalView
+        ? vec4((norm + 1.0) * 0.5, 1.0)
+        : vec4(result, 1.0);
 }

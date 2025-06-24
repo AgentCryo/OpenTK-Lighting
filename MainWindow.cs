@@ -7,6 +7,7 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Mathematics;
 using OpenTK_Lighting.Loaders;
 using Image = OpenTK_Lighting.Loaders.Image;
+using OpenTK_Lighting.ObjectTypes;
 
 namespace OpenTK_Lighting
 {
@@ -55,6 +56,7 @@ namespace OpenTK_Lighting
 				new(0, -1,  0), // -Z
 			};
 
+		List<LightObject> pointLights = new List<LightObject>();
 		#endregion
 
 		private ImGuiController _controller;
@@ -71,6 +73,9 @@ namespace OpenTK_Lighting
 		public RenderableObject plane;
 		public RenderableObject plane2;
 		public RenderableObject lightingText;
+
+		public LightObject light1 = new("light1");
+		public LightObject light2 = new("light2");
 		protected override void OnLoad()
 		{
 			base.OnLoad();
@@ -303,38 +308,21 @@ namespace OpenTK_Lighting
 
 			#endregion
 
-			#region Shadow Rendering
+			#region Light Init
 			_shadowShader = new Shader(
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\vertex.glsl",
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\fragment.glsl"
 			);
 
-			pointShadowMapFBO = GL.GenFramebuffer();
-			depthCubeMap = GL.GenTexture();
-
-			GL.BindTexture(TextureTarget.TextureCubeMap, depthCubeMap);
-			for (int i = 0; i < 6; i++)
-				GL.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, PixelInternalFormat.DepthComponent, shadowMapWidth, shadowMapHeight, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureBorderColor, new float[] { 1, 1, 1, 1 });
-
-			GL.BindFramebuffer(FramebufferTarget.Framebuffer, pointShadowMapFBO);
-			GL.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, depthCubeMap, 0);
-			GL.DrawBuffer(DrawBufferMode.None);
-			GL.ReadBuffer(ReadBufferMode.None);
-			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-
-			_shadowProjection = Matrix4.CreatePerspectiveFieldOfView(float.DegreesToRadians(90.0f), 1.0f, 0.1f, 1000.0f);
-
-			for (int i = 0; i < 6; i++)
-				_shadowView[i] = Matrix4.LookAt(pointLightPosition, pointLightPosition + directions[i], ups[i]);
+			light1.Position = new Vector3(0, 2.5f, -5);
+			light1.InitShadowResources();
+			pointLights.Add(light1);
+			light2.Position = new Vector3(2.5f, 2.5f, -5);
+			light2.InitShadowResources();
+			pointLights.Add(light2);
 			#endregion
 
-			#region Base Rendering
+			#region Base Init
 			_baseShader = new Shader(
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Base\vertex.glsl",
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Base\fragment.glsl"
@@ -367,10 +355,10 @@ namespace OpenTK_Lighting
 			base.OnUpdateFrame(args);
 
 			BoxWithFrame.Rotation.Y -= (float)args.Time * 60;
-			pointLightPosition.X = float.Sin(lightValue)*6;
-			pointLightPosition.Z = float.Cos(lightValue+=(float)args.Time/12)*6;
-			for (int i = 0; i < 6; i++)
-				_shadowView[i] = Matrix4.LookAt(pointLightPosition, pointLightPosition + directions[i], ups[i]);
+			//pointLightPosition.X = float.Sin(lightValue)*6;
+			//pointLightPosition.Z = float.Cos(lightValue+=(float)args.Time/12)*6;
+
+			foreach(LightObject light in pointLights) light.UpdateViewMatrices();
 
 			if (KeyboardState.IsKeyPressed(Keys.Tab)) mouseGrabbedToggle ^= true;
 			CursorState = mouseGrabbedToggle ? CursorState.Grabbed : CursorState.Normal;
@@ -412,26 +400,30 @@ namespace OpenTK_Lighting
 			_controller.Update(this, (float)args.Time);
 
 			#region Shadow
-			//GL.CullFace(TriangleFace.Front);
-			GL.Viewport(0, 0, shadowMapWidth, shadowMapHeight);
-			GL.BindFramebuffer(FramebufferTarget.Framebuffer, pointShadowMapFBO);
 
-			_shadowShader.Use();
-			GL.UniformMatrix4(_shadowShader.GetUniform("uLightProjection"), false, ref _shadowProjection);
-			GL.Uniform3(_shadowShader.GetUniform("uLightPos"), ref pointLightPosition);
+			foreach (var light in pointLights)
+			{
+				if (!light.CastShadows || !useShadows)
+					continue;
 
-			int location = GL.GetUniformLocation(_shadowShader.Handle, "uLightView");
-			GL.UniformMatrix4(location, _shadowView.Length, false, ref _shadowView[0].Row0.X);
+				GL.Viewport(0, 0, light.ShadowMapResolution, light.ShadowMapResolution);
+				GL.BindFramebuffer(FramebufferTarget.Framebuffer, light.ShadowFBO);
 
-			GL.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, depthCubeMap, 0);
-			GL.Clear(ClearBufferMask.DepthBufferBit);
+				_shadowShader.Use();
+				GL.UniformMatrix4(_shadowShader.GetUniform("uLightProjection"), false, ref light.Projection);
+				GL.Uniform3(_shadowShader.GetUniform("uLightPos"), ref light.Position);
 
-			foreach (var obj in _objects) {
-				obj.Render(_shadowShader, 6);
-				_drawCalls++;
+				int location = GL.GetUniformLocation(_shadowShader.Handle, "uLightView");
+				GL.UniformMatrix4(location, light.ViewMatrices.Length, false, ref light.ViewMatrices[0].Row0.X);
+
+				GL.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, light.DepthCubeMap, 0);
+				GL.Clear(ClearBufferMask.DepthBufferBit);
+
+				foreach (var obj in _objects)
+					obj.Render(_shadowShader, 6);
+
+				GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 			}
-			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-			//GL.CullFace(TriangleFace.Back);
 			#endregion
 
 			#region Base Rendering
@@ -441,9 +433,23 @@ namespace OpenTK_Lighting
 			GL.UniformMatrix4(_baseShader.GetUniform("uView"), false, ref view);
 			GL.UniformMatrix4(_baseShader.GetUniform("uProjection"), false, ref _projection);
 
-			GL.ActiveTexture(TextureUnit.Texture0);
-			GL.BindTexture(TextureTarget.TextureCubeMap, depthCubeMap);
-			GL.Uniform1(_baseShader.GetUniform("shadowMap"), 0);
+			GL.Uniform1(_baseShader.GetUniform("numPointLights"), pointLights.Count);
+
+			for (int i = 0; i < pointLights.Count; i++)
+			{
+				var light = pointLights[i];
+
+				// Bind shadow cubemap to texture unit;
+				GL.ActiveTexture(TextureUnit.Texture0 + i);
+				GL.BindTexture(TextureTarget.TextureCubeMap, light.DepthCubeMap);
+				GL.Uniform1(_baseShader.GetUniform($"shadowMaps[{i}]"), i);
+
+				GL.Uniform3(_baseShader.GetUniform($"lightPositions[{i}]"), ref light.Position);
+
+				GL.Uniform3(_baseShader.GetUniform($"lightColors[{i}]"), ref light.Color);
+				GL.Uniform1(_baseShader.GetUniform($"lightIntensities[{i}]"), light.Intensity);
+			}
+
 			GL.Uniform3(_baseShader.GetUniform("uLightPos"), ref pointLightPosition);
 			GL.Uniform3(_baseShader.GetUniform("uCameraPos"), ref _camera.Position);
 			GL.Uniform1(_baseShader.GetUniform("normalView"), normalsView ? 1 : 0);
@@ -459,26 +465,26 @@ namespace OpenTK_Lighting
 				if (obj.colorTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useColorTexture"), useColorMaps ? 1 : 0);
-					GL.ActiveTexture(TextureUnit.Texture1);
+					GL.ActiveTexture(TextureUnit.Texture1 + pointLights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, obj.colorTexture);
-					GL.Uniform1(_baseShader.GetUniform("material.colorTexture"), 1);
+					GL.Uniform1(_baseShader.GetUniform("material.colorTexture"), 1 + pointLights.Count);
 				} else { GL.Uniform1(_baseShader.GetUniform("material.useColorTexture"), 0); }
 				#endregion
 				#region Specular
 				if (obj.specularTexture != -1) {
 					GL.Uniform1(_baseShader.GetUniform("material.useSpecularTexture"), useSpecularMaps ? 1 : 0);
-					GL.ActiveTexture(TextureUnit.Texture2);
+					GL.ActiveTexture(TextureUnit.Texture2 + pointLights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, obj.specularTexture);
-					GL.Uniform1(_baseShader.GetUniform("material.specularTexture"), 2);
+					GL.Uniform1(_baseShader.GetUniform("material.specularTexture"), 2 + pointLights.Count);
 				} else { GL.Uniform1(_baseShader.GetUniform("material.useSpecularTexture"), 0); }
 				#endregion
 				#region Normal
 				if (obj.normalTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), useNormalMaps ? 1 : 0);
-					GL.ActiveTexture(TextureUnit.Texture3);
+					GL.ActiveTexture(TextureUnit.Texture3 + pointLights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, obj.normalTexture);
-					GL.Uniform1(_baseShader.GetUniform("material.normalTexture"), 3);
+					GL.Uniform1(_baseShader.GetUniform("material.normalTexture"), 3 + pointLights.Count);
 				}
 				else { GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), 0); }
 				#endregion
@@ -583,7 +589,7 @@ namespace OpenTK_Lighting
 							#endregion
 							#region Scale
 							ImGui.AlignTextToFramePadding();
-							ImGui.Text("Scale ");
+							ImGui.Text("Scale    ");
 							ImGui.SameLine();
 							ImGui.AlignTextToFramePadding();
 							ImGui.Text("X");
@@ -606,14 +612,59 @@ namespace OpenTK_Lighting
 							ImGui.Unindent();
 						}
 						if (useColorMaps != true || obj.TextureCoordinants == null) {
-							ImGui.PushItemWidth(300);
+							ImGui.PushItemWidth(200);
+							ImGui.Indent();
 							var color4 = new System.Numerics.Vector4(obj.baseColor.X, obj.baseColor.Y, obj.baseColor.Z, 1.0f);
 							if (ImGui.ColorPicker4($"Color Picker##{obj.Name}", ref color4))
 							{
 								obj.baseColor = new Vector3(color4.X, color4.Y, color4.Z);
 							}
+							ImGui.Unindent();
 							ImGui.PopItemWidth();
 						}
+						ImGui.Unindent();
+					}
+				}
+				ImGui.Unindent();
+			}
+			if (ImGui.CollapsingHeader("Lights"))
+			{
+				ImGui.Indent();
+				foreach(LightObject light in pointLights)
+				{
+					if (ImGui.CollapsingHeader($"{light.Name}"))
+					{
+						ImGui.Indent();
+						#region Position
+						ImGui.AlignTextToFramePadding();
+						ImGui.Text("Position ");
+						ImGui.SameLine();
+						ImGui.AlignTextToFramePadding();
+						ImGui.Text("X");
+						ImGui.SameLine();
+						ImGui.SetNextItemWidth(70);
+						ImGui.DragFloat($"##PosX{light.Name}", ref light.Position.X, 0.05f, float.MinValue, float.MaxValue, "%.2f");
+
+						ImGui.SameLine();
+						ImGui.Text("Y");
+						ImGui.SameLine();
+						ImGui.SetNextItemWidth(70);
+						ImGui.DragFloat($"##PosY{light.Name}", ref light.Position.Y, 0.05f, float.MinValue, float.MaxValue, "%.2f");
+
+						ImGui.SameLine();
+						ImGui.Text("Z");
+						ImGui.SameLine();
+						ImGui.SetNextItemWidth(70);
+						ImGui.DragFloat($"##PosZ{light.Name}", ref light.Position.Z, 0.05f, float.MinValue, float.MaxValue, "%.2f");
+						#endregion
+
+						ImGui.Checkbox($"Cast Shadows##{light.Name}", ref light.CastShadows);
+						System.Numerics.Vector3 lightColor = (System.Numerics.Vector3)light.Color;
+						if (ImGui.ColorEdit3($"Color##{light.Name}", ref lightColor))
+						{
+							light.Color = (Vector3)lightColor;
+						}
+						ImGui.DragFloat($"Intensity##{light.Name}", ref light.Intensity, 0.05f, 0.0f, 10.0f, "%.2f");
 						ImGui.Unindent();
 					}
 				}
