@@ -671,7 +671,7 @@ namespace OpenTK_Lighting
 						ImGui.DragFloat($"##PosZ{light.Name}", ref light.Position.Z, 0.05f, float.MinValue, float.MaxValue, "%.2f");
 						#endregion
 
-						ImGui.Checkbox($"Cast Shadows##{light.Name}", ref light.Active);
+						ImGui.Checkbox($"Active##{light.Name}", ref light.Active);
 						System.Numerics.Vector3 lightColor = (System.Numerics.Vector3)light.Color;
 						if (ImGui.ColorEdit3($"Color##{light.Name}", ref lightColor))
 						{

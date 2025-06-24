@@ -41,7 +41,7 @@ float remapDepth(float x) {
 
 #define MAX_POINT_LIGHTS 8
 
-uniform samplerCube shadowMaps[MAX_POINT_LIGHTS];
+uniform samplerCubeShadow shadowMaps[MAX_POINT_LIGHTS];
 uniform vec3 lightPositions[MAX_POINT_LIGHTS];
 uniform int numPointLights;
 
@@ -54,29 +54,27 @@ vec3 sampleOffsetDirections[20] = vec3[]
    vec3( 0,  1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0,  1, -1)
 ); 
 const float farPlane = 1000.0;
-float ShadowCalculation(vec3 fragPos, vec3 lightPos, samplerCube cubeMap)
+float ShadowCalculation(vec3 fragPos, vec3 lightPos, samplerCubeShadow cubeMap)
 {
     vec3 fragToLight = fragPos - lightPos;
     float currentDepth = length(fragToLight);
-
-    float bias = max(0.015 * (1.0 - dot(normalize(vNormal), normalize(fragToLight))), 0.002);
-
     float shadow = 0.0;
     int samples = 20;
-    float viewDistance = length(viewPos - fragPos);
-    float diskRadius = (1.0 + (viewDistance / farPlane)) / 75.0;
+    float diskRadius = (1.0 + (length(viewPos - fragPos) / farPlane)) / 75.0;
+
+    // Normalize depth to [0, 1]
+    float compareDepth = currentDepth / farPlane;
 
     for (int i = 0; i < samples; ++i)
     {
-        float closestDepth = texture(cubeMap, fragToLight + sampleOffsetDirections[i] * diskRadius).r;
-        closestDepth *= farPlane;
-        if (currentDepth - bias > closestDepth)
-            shadow += 1.0;
+        vec3 sampleDir = normalize(fragToLight + sampleOffsetDirections[i] * diskRadius);
+        float sample = texture(cubeMap, vec4(sampleDir, compareDepth));
+        shadow += 1.0 - sample; // 1.0 if lit, 0.0 if in shadow
     }
 
-    return shadow / float(samples);
+    shadow /= float(samples);
+    return shadow;
 }
-
 
 vec3 GetMaterialColor(Material mat, vec2 texCoords) {
     if (mat.useColorTexture) {
