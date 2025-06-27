@@ -9,6 +9,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Graphics.OpenGL4;
+using OpenTK_Lighting.Loaders;
 
 namespace OpenTK_Lighting.ObjectTypes
 {
@@ -29,6 +30,7 @@ namespace OpenTK_Lighting.ObjectTypes
         public List<float> Bitangents = new();
 
         public Vector3 baseColor = Vector3.One;
+        public float specularStrength = 0.5f;
         public int colorTexture = -1;
         public int specularTexture = -1;
         public int normalTexture = -1;

@@ -257,7 +257,8 @@ namespace OpenTK_Lighting
 			BoxWithFrame.specularTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\specular.png");
 			BoxWithFrame.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\normal.png");
 			BoxWithFrame.DisposeBuffers();
-			BoxWithFrame.InitializeBuffers(true);
+			BoxWithFrame.InitializeBuffers(false);
+			BoxWithFrame.specularStrength = 8;
 			_objects.Add(BoxWithFrame);
 			#endregion
 
@@ -267,7 +268,8 @@ namespace OpenTK_Lighting
 			BoxWithFrame2.specularTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\specular.png");
 			BoxWithFrame2.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\normal.png");
 			BoxWithFrame2.DisposeBuffers();
-			BoxWithFrame2.InitializeBuffers(true);
+			BoxWithFrame2.InitializeBuffers(false);
+			BoxWithFrame2.specularStrength = 8;
 			_objects.Add(BoxWithFrame2);
 			#endregion
 
@@ -286,6 +288,7 @@ namespace OpenTK_Lighting
 			plane.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Bricks\Textures\normal.png");
 			plane.DisposeBuffers();
 			plane.InitializeBuffers(false);
+			plane.specularStrength = 1;
 			_objects.Add(plane);
 			#endregion
 
@@ -295,6 +298,7 @@ namespace OpenTK_Lighting
 			plane2.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Bricks\Textures\normal.png");
 			plane2.DisposeBuffers();
 			plane2.InitializeBuffers(false);
+			plane2.specularStrength = 1;
 			_objects.Add(plane2);
 			#endregion
 
@@ -317,19 +321,19 @@ namespace OpenTK_Lighting
 
 			light1.Position = new Vector3(0, 4, 3);
 			light1.Color = new Vector3(1, 0, 0);
-			light1.Intensity = 1.5f;
+			light1.Intensity = 10f;
 			light1.InitShadowResources();
 			pointLights.Add(light1);
 
 			light2.Position = new Vector3(0.25f, 4, 3);
 			light2.Color = new Vector3(0, 1, 0);
-			light2.Intensity = 1.5f;
+			light2.Intensity = 10f;
 			light2.InitShadowResources();
 			pointLights.Add(light2);
 
 			light3.Position = new Vector3(0.5f, 4, 3);
 			light3.Color = new Vector3(0, 0, 1);
-			light3.Intensity = 1.5f;
+			light3.Intensity = 10f;
 			light3.InitShadowResources();
 			pointLights.Add(light3);
 			#endregion
@@ -464,6 +468,7 @@ namespace OpenTK_Lighting
 				GL.Uniform1(_baseShader.GetUniform($"lightIntensities[{i}]"), light.Intensity);
 
 				GL.Uniform1(_baseShader.GetUniform($"lightActives[{i}]"), light.Active ? 1 : 0);
+				GL.Uniform1(_baseShader.GetUniform($"lightSizes[{i}]"), light.Radius);
 			}
 
 			GL.Uniform3(_baseShader.GetUniform("uLightPos"), ref pointLightPosition);
@@ -471,7 +476,6 @@ namespace OpenTK_Lighting
 			GL.Uniform1(_baseShader.GetUniform("normalView"), normalsView ? 1 : 0);
 			GL.Uniform1(_baseShader.GetUniform("useShadows"), useShadows ? 1 : 0);
 			
-			GL.Uniform1(_baseShader.GetUniform("material.specular"), 0.3f);
 			GL.Uniform1(_baseShader.GetUniform("material.shininess"), 32.0f);
 
 			foreach (var obj in _objects)
@@ -504,6 +508,7 @@ namespace OpenTK_Lighting
 				}
 				else { GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), 0); }
 				#endregion
+				GL.Uniform1(_baseShader.GetUniform("material.specular"), obj.specularStrength);
 				obj.Render(_baseShader);
 				_drawCalls++;
 			}
@@ -629,16 +634,13 @@ namespace OpenTK_Lighting
 							#endregion
 							ImGui.Unindent();
 						}
+						ImGui.DragFloat($"Specular Strength##{obj.Name}", ref obj.specularStrength);
 						if (useColorMaps != true || obj.TextureCoordinants == null) {
-							ImGui.PushItemWidth(200);
-							ImGui.Indent();
 							var color3 = new System.Numerics.Vector3(obj.baseColor.X, obj.baseColor.Y, obj.baseColor.Z);
 							if (ImGui.ColorEdit3($"Color##{obj.Name}", ref color3))
 							{
 								obj.baseColor = (Vector3)color3;
 							}
-							ImGui.Unindent();
-							ImGui.PopItemWidth();
 						}
 						ImGui.Unindent();
 					}
@@ -656,6 +658,8 @@ namespace OpenTK_Lighting
 					if (ImGui.CollapsingHeader($"{light.Name}"))
 					{
 						ImGui.Indent();
+						ImGui.Checkbox($"Active##{light.Name}", ref light.Active);
+
 						#region Position
 						ImGui.AlignTextToFramePadding();
 						ImGui.Text("Position ");
@@ -679,13 +683,13 @@ namespace OpenTK_Lighting
 						ImGui.DragFloat($"##PosZ{light.Name}", ref light.Position.Z, 0.05f, float.MinValue, float.MaxValue, "%.2f");
 						#endregion
 
-						ImGui.Checkbox($"Active##{light.Name}", ref light.Active);
 						System.Numerics.Vector3 lightColor = (System.Numerics.Vector3)light.Color;
 						if (ImGui.ColorEdit3($"Color##{light.Name}", ref lightColor))
 						{
 							light.Color = (Vector3)lightColor;
 						}
 						ImGui.DragFloat($"Intensity##{light.Name}", ref light.Intensity, 0.05f, 0.0f, 10.0f, "%.2f");
+						ImGui.DragFloat($"Radius##{light.Name}", ref light.Radius, 0.05f, 0.0f, 10.0f, "%.2f");
 						ImGui.Unindent();
 					}
 				}

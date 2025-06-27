@@ -17,6 +17,7 @@ namespace OpenTK_Lighting.ObjectTypes
 		public int ShadowMapResolution = 2048;
 		public Vector3 Color = Vector3.One;
 		public float Intensity = 1.0f;
+		public float Radius = 0.4f;
 
 		public int ShadowFBO = -1;
 		public int DepthCubeMap = -1;
@@ -49,8 +50,8 @@ namespace OpenTK_Lighting.ObjectTypes
 			GL.ReadBuffer(ReadBufferMode.None);
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
-			GL.TextureParameter(DepthCubeMap, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
-			GL.TextureParameter(DepthCubeMap, TextureParameterName.TextureCompareFunc, (int)All.Less);
+			//GL.TextureParameter(DepthCubeMap, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
+			//GL.TextureParameter(DepthCubeMap, TextureParameterName.TextureCompareFunc, (int)All.Less);
 
 			Projection = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90f), 1f, 0.1f, 1000f);
 			UpdateViewMatrices();
