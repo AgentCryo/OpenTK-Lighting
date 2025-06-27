@@ -10,45 +10,62 @@ namespace OpenTK_Lighting.Loaders
 {
     public static class Image
     {
-        public static int loadTexture(string ImageFilePath)
-        {
-            int width, height;
-            int textureHandle;
+		public enum TextureType
+		{
+			Color,
+			Normal,
+			Specular
+		}
 
-            try
-            {
-                using (var stream = File.OpenRead(ImageFilePath))
-                {
-					StbImage.stbi_set_flip_vertically_on_load(1);
+		public static int LoadTexture(string imagePath, TextureType type = TextureType.Color)
+		{
+			try
+			{
+				using var stream = File.OpenRead(imagePath);
+				StbImage.stbi_set_flip_vertically_on_load(1);
+				var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
 
-					var image = ImageResult.FromStream(stream, ColorComponents.RedGreenBlueAlpha);
-                    width = image.Width;
-                    height = image.Height;
+				int internalFormat;
+				int pixelFormat = (int)PixelFormat.Rgba;
 
-                    textureHandle = GL.GenTexture();
-                    GL.BindTexture(TextureTarget.Texture2D, textureHandle);
+				switch (type)
+				{
+					case TextureType.Normal:
+						internalFormat = (int)PixelInternalFormat.Rgba; // No sRGB for normal maps
+						break;
+					case TextureType.Specular:
+					case TextureType.Color:
+					default:
+						internalFormat = (int)PixelInternalFormat.SrgbAlpha; // sRGB for color/specular
+						break;
+				}
 
-                    GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, width, height,
-                      0, PixelFormat.Rgba, PixelType.UnsignedByte, image.Data);
+				int textureHandle = GL.GenTexture();
+				GL.BindTexture(TextureTarget.Texture2D, textureHandle);
 
-                    GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.LinearMipmapLinear);
-                    GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-                    GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)All.TextureMaxAnisotropyExt, 16.0f);
-                    GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-                    GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+				GL.TexImage2D(TextureTarget.Texture2D, 0, (PixelInternalFormat)internalFormat,
+					image.Width, image.Height, 0,
+					(PixelFormat)pixelFormat, PixelType.UnsignedByte, image.Data);
 
-                    GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
+				GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter,
+					(int)TextureMinFilter.LinearMipmapLinear);
+				GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter,
+					(int)TextureMagFilter.Linear);
+				GL.TexParameter(TextureTarget.Texture2D, (TextureParameterName)All.TextureMaxAnisotropyExt, 16f);
+				GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS,
+					(int)TextureWrapMode.Repeat);
+				GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT,
+					(int)TextureWrapMode.Repeat);
 
-                    //GL.BindTexture(TextureTarget.Texture2D, 0);
-                }
+				GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
-                return textureHandle;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Failed to load texture: {ex.Message}");
-                return -1;
-            }
-        }
-    }
+				return textureHandle;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Failed to load texture: {ex.Message}");
+				return -1;
+			}
+		}
+	}
 }

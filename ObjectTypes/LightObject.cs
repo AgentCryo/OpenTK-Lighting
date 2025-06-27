@@ -16,7 +16,7 @@ namespace OpenTK_Lighting.ObjectTypes
 		public bool Active = true;
 		public int ShadowMapResolution = 2048;
 		public Vector3 Color = Vector3.One;
-		public float Intensity = 1.0f;
+		public float Intensity = 32f;
 		public float Radius = 0.4f;
 
 		public int ShadowFBO = -1;

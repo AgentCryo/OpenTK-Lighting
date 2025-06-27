@@ -26,10 +26,18 @@ void main()
 
     mat3 normalMatrix = mat3(transpose(inverse(uModel)));
     vNormal = normalize(normalMatrix * aNormal);
-    vec3 vTangent = normalize(normalMatrix * aTangent.xyz);
-    vec3 vBitangent = cross(vNormal, vTangent);
 
-    TBN = mat3(vTangent, vBitangent, vNormal);
+    vec3 T = normalize(normalMatrix * aTangent.xyz);
+    float handedness = aTangent.w;
+
+    // Reconstruct bitangent using handedness
+    vec3 B = handedness * cross(vNormal, T);
+
+    // Optional orthonormalization if needed:
+    T = normalize(T - dot(T, vNormal) * vNormal);
+    B = normalize(cross(vNormal, T));
+
+    TBN = mat3(T, B, vNormal);
 
     gl_Position = uProjection * uView * vec4(FragPos, 1.0);
 }

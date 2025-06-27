@@ -16,7 +16,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="Objects\Decoration Gizmo\Textures\" />
     <Folder Include="Objects\Lighting Text\Mesh\" />
+    <Folder Include="Shaders\PostProcessing\" />
   </ItemGroup>
 
 </Project>

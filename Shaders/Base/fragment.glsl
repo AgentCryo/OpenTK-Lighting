@@ -21,7 +21,8 @@ in mat3 TBN;
 in vec3 viewPos;
 
 // ====== OUTPUT ======
-out vec4 FragColor;
+layout(location = 0) out vec4 FragColor;
+layout(location = 1) out vec4 NormalBuffer;
 
 // ====== UNIFORMS ======
 #define MAX_POINT_LIGHTS 8
@@ -96,7 +97,7 @@ float avgBlockerDepth(vec3 fragToLight, samplerCube cubeMap, float searchRadius)
     return avgBlocker / float(blockerCount);
 }
 
-float PCFShadow(vec3 fragToLight, samplerCube cubeMap, float filterRadius) {
+float PCFShadow(vec3 fragToLight, samplerCube cubeMap, float filterRadius, vec3 fragNormal) {
     float shadow = 0.0;
     float receiverDepth = length(fragToLight);
     vec3 L = normalize(fragToLight);
@@ -107,13 +108,15 @@ float PCFShadow(vec3 fragToLight, samplerCube cubeMap, float filterRadius) {
 
     float angularRadius = filterRadius / receiverDepth;
 
+   float bias = max(0.01 * (1.0 - dot(fragNormal, L)), 0.001);
+
     for (int i = 0; i < NUM_PCF_SAMPLES; ++i) {
         vec2 offset = vogelDiskSample(i, NUM_PCF_SAMPLES, angularRadius);
         vec3 sampleDir = normalize(L + tangent * offset.x + bitangent * offset.y);
         float sampleDepth = texture(cubeMap, sampleDir).r;
         sampleDepth = linearizeDepth(sampleDepth);
 
-        float visibility = smoothstep(-0.01, 0.01, receiverDepth - 0.005 - sampleDepth);
+        float visibility = smoothstep(-0.01, 0.01, receiverDepth - bias - sampleDepth);
         shadow += visibility;
     }
 
@@ -132,7 +135,7 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, samplerCube cubeMap, vec3 f
     float filterRadius = penumbraSize(receiverDepth, avgBlocker, lightRadius);
     filterRadius = clamp(filterRadius, 0.001, 0.2 * receiverDepth);
 
-    return PCFShadow(fragToLight, cubeMap, filterRadius);
+    return PCFShadow(fragToLight, cubeMap, filterRadius, fragNormal);
 }
 
 // ====== MATERIAL HELPERS ======
@@ -184,12 +187,16 @@ void main() {
         vec3 diffuse = diff * lightColor;
 
         // Specular
-        float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
+        vec3 halfwayDir = normalize(lightDir + viewDir);
+        float spec = pow(max(dot(norm, halfwayDir), 0.0), material.shininess);
         float specularStrength = dot(specularMap, vec3(0.2126, 0.7152, 0.0722));
         vec3 specular = specularStrength * spec * lightColor;
 
         // Shadow
-        float shadow = ShadowCalculation(FragPos, lightPos, shadowMaps[i], norm, lightSizes[i]);
+        float shadow = 0.0;
+        if(useShadows) {
+            shadow = ShadowCalculation(FragPos, lightPos, shadowMaps[i], norm, lightSizes[i]);
+        }
 
         // Attenuation
         float distance = length(lightPos - FragPos);
@@ -209,4 +216,6 @@ void main() {
     FragColor = normalView
         ? vec4((norm + 1.0) * 0.5, 1.0)
         : vec4(gammaCorrected, 1.0);
+
+    NormalBuffer = vec4(normalize(norm) * 0.5 + 0.5, 1.0);
 }

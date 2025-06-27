@@ -25,10 +25,6 @@ namespace OpenTK_Lighting
 		Matrix4 _projection;
 
 		private Shader _shadowShader;
-		private int pointShadowMapFBO, depthCubeMap;
-		int shadowMapWidth = 2048*2, shadowMapHeight = 2048*2;
-		Matrix4[] _shadowView = new Matrix4[6];
-		Matrix4 _shadowProjection;
 		#endregion
 
 		#region Light Rendering Variables
@@ -59,6 +55,17 @@ namespace OpenTK_Lighting
 		List<LightObject> pointLights = new List<LightObject>();
 		#endregion
 
+		#region Post Processing Variables
+		int PostProcessing_FBO;
+		int postProcessing_colorTexture, postProcessing_normalTexture, depthTexture;
+		int _fsQuadVAO;
+		Shader _postProcessingShader;
+		Vector3[] ssaoKernel = new Vector3[64];
+		Vector3[] ssaoNoise = new Vector3[16];
+		int noiseTexture;
+		bool useSSAO = true;
+		#endregion
+
 		private ImGuiController _controller;
 		public MainWindow(GameWindowSettings gameWindowSettings, NativeWindowSettings nativeWindowSettings)
 			: base(gameWindowSettings, nativeWindowSettings)
@@ -73,6 +80,7 @@ namespace OpenTK_Lighting
 		public RenderableObject plane;
 		public RenderableObject plane2;
 		public RenderableObject lightingText;
+		public RenderableObject decorationGizmo;
 
 		public LightObject light1 = new("light1");
 		public LightObject light2 = new("light2");
@@ -82,6 +90,8 @@ namespace OpenTK_Lighting
 			base.OnLoad();
 
 			#region Objects
+			string basePath = @"C:\Users\chill\source\repos\OpenTK Lighting\Objects\";
+			string GetTexturePath(string objectName, string textureName) => Path.Combine(basePath, objectName, "Textures", textureName);
 
 			#region Cube Data
 			List<float> cubeVertices = new List<float>
@@ -253,30 +263,20 @@ namespace OpenTK_Lighting
 
 			#region Box With Frame
 			BoxWithFrame = new RenderableObject("Box With Frame", cubeVertices, cubeNormals, cubeIndices, cubeTexCoords);
-			BoxWithFrame.colorTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\color.png");
-			BoxWithFrame.specularTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\specular.png");
-			BoxWithFrame.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\normal.png");
+			BoxWithFrame.colorTexture = Image.LoadTexture(GetTexturePath("BoxWithFrame", "color.png"), Image.TextureType.Color);
+			BoxWithFrame.specularTexture = Image.LoadTexture(GetTexturePath("BoxWithFrame", "specular.png"), Image.TextureType.Specular);
+			BoxWithFrame.normalTexture = Image.LoadTexture(GetTexturePath("BoxWithFrame", "normal.png"), Image.TextureType.Normal);
+
 			BoxWithFrame.DisposeBuffers();
 			BoxWithFrame.InitializeBuffers(false);
 			BoxWithFrame.specularStrength = 8;
 			_objects.Add(BoxWithFrame);
 			#endregion
 
-			#region Box With Frame 2
-			BoxWithFrame2 = new RenderableObject("Box With Frame 2", cubeVertices, cubeNormals, cubeIndices, cubeTexCoords) { Position = new Vector3(0, 5, 0) };
-			BoxWithFrame2.colorTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\color.png");
-			BoxWithFrame2.specularTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\specular.png");
-			BoxWithFrame2.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\BoxWithFrame\Textures\normal.png");
-			BoxWithFrame2.DisposeBuffers();
-			BoxWithFrame2.InitializeBuffers(false);
-			BoxWithFrame2.specularStrength = 8;
-			_objects.Add(BoxWithFrame2);
-			#endregion
-
 			#region Play Cube
 			PlayCube = new RenderableObject("Play Cube", cubeVertices, cubeNormals, cubeIndices, cubeTexCoords) { Position = new Vector3(2, 0, 0) };
-			PlayCube.colorTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\PlayCube\Textures\color.png");
-			PlayCube.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\PlayCube\Textures\normal.png");
+			PlayCube.colorTexture = Image.LoadTexture(GetTexturePath("PlayCube", "color.png"), Image.TextureType.Color);
+			PlayCube.normalTexture = Image.LoadTexture(GetTexturePath("PlayCube", "normal.png"), Image.TextureType.Normal);
 			PlayCube.DisposeBuffers();
 			PlayCube.InitializeBuffers(true);
 			_objects.Add(PlayCube);
@@ -284,31 +284,30 @@ namespace OpenTK_Lighting
 
 			#region Floor
 			plane = new RenderableObject("Floor", planeVertices, planeNormals, planeIndices, planeTexCoords) { Position = new Vector3(0, -0.5f, 0), Rotation = new Vector3(0, 0, 0) };
-			plane.colorTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Bricks\Textures\color.png");
-			plane.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Bricks\Textures\normal.png");
+			plane.colorTexture = Image.LoadTexture(GetTexturePath("Bricks", "color.png"), Image.TextureType.Color);
+			plane.normalTexture = Image.LoadTexture(GetTexturePath("Bricks", "normal.png"), Image.TextureType.Normal);
 			plane.DisposeBuffers();
 			plane.InitializeBuffers(false);
 			plane.specularStrength = 1;
 			_objects.Add(plane);
 			#endregion
 
-			#region Ceiling
-			plane2 = new RenderableObject("Ceiling", planeVertices, planeNormals, planeIndices, planeTexCoords) { Position = new Vector3(0, 5.5f, 0), Rotation = new Vector3(180, 0, 0) };
-			plane2.colorTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Bricks\Textures\color.png");
-			plane2.normalTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Bricks\Textures\normal.png");
-			plane2.DisposeBuffers();
-			plane2.InitializeBuffers(false);
-			plane2.specularStrength = 1;
-			_objects.Add(plane2);
-			#endregion
-
 			#region Lighting Text
 			var (verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\\Users\\chill\\source\\repos\\OpenTK Lighting\\Objects\\Lighting Text\\Mesh\\LightingText.obj");
 			lightingText = new RenderableObject("Lighting Text", verts, norms, inds, uvs) { Position = new Vector3(-2.5f, 0.25f, 0.55f), Scale = new Vector3(3,3,3), Rotation = new Vector3(0,10.7f,9.45f)};
-			lightingText.colorTexture = Image.loadTexture(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Lighting Text\Textures\color.png");
+			lightingText.colorTexture = Image.LoadTexture(GetTexturePath("Lighting Text", "color.png"), Image.TextureType.Color);
 			lightingText.DisposeBuffers();
 			lightingText.InitializeBuffers(true);
 			_objects.Add(lightingText);
+			#endregion
+
+			#region Decoration Gizmo
+			(verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\\Users\\chill\\source\\repos\\OpenTK Lighting\\Objects\\Decoration Gizmo\\Mesh\\DecorationGizmo.obj");
+			decorationGizmo = new RenderableObject("Decoration Gizmo", verts, norms, inds, uvs) { Position = new Vector3(5f, -0.5f, -1.0f), Rotation = new Vector3(0, -90-15, 0) };
+			decorationGizmo.colorTexture = Image.LoadTexture(GetTexturePath("Decoration Gizmo", "color.png"), Image.TextureType.Color);
+			decorationGizmo.DisposeBuffers();
+			decorationGizmo.InitializeBuffers(true);
+			_objects.Add(decorationGizmo);
 			#endregion
 
 			#endregion
@@ -321,19 +320,16 @@ namespace OpenTK_Lighting
 
 			light1.Position = new Vector3(0, 4, 3);
 			light1.Color = new Vector3(1, 0, 0);
-			light1.Intensity = 10f;
 			light1.InitShadowResources();
 			pointLights.Add(light1);
 
 			light2.Position = new Vector3(0.25f, 4, 3);
 			light2.Color = new Vector3(0, 1, 0);
-			light2.Intensity = 10f;
 			light2.InitShadowResources();
 			pointLights.Add(light2);
 
 			light3.Position = new Vector3(0.5f, 4, 3);
 			light3.Color = new Vector3(0, 0, 1);
-			light3.Intensity = 10f;
 			light3.InitShadowResources();
 			pointLights.Add(light3);
 			#endregion
@@ -353,12 +349,100 @@ namespace OpenTK_Lighting
 			);
 			#endregion
 
+			#region Post Processing Init
+			_postProcessingShader = new Shader(
+				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\PostProcessing\vertex.glsl",
+				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\PostProcessing\fragment.glsl"
+			);
+
+			postProcessing_colorTexture = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_colorTexture);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+			postProcessing_normalTexture = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_normalTexture);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba16f, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.Float, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+			depthTexture = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, depthTexture);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent24, Size.X, Size.Y, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+			PostProcessing_FBO = GL.GenFramebuffer();
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, PostProcessing_FBO);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, postProcessing_colorTexture, 0);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, postProcessing_normalTexture, 0);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depthTexture, 0);
+
+			DrawBuffersEnum[] drawBuffers = { DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1 };
+			GL.DrawBuffers(drawBuffers.Length, drawBuffers);
+
+			var status = GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer);
+			if (status != FramebufferErrorCode.FramebufferComplete)
+			{
+				throw new Exception($"Framebuffer not complete: {status}");
+			}
+
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+			_fsQuadVAO = GL.GenVertexArray();
+			
+			Random rnd = new Random();
+			for (int i = 0; i < 64; i++)
+			{
+				Vector3 sample = new Vector3(
+					(float)(rnd.NextDouble() * 2.0 - 1.0),
+					(float)(rnd.NextDouble() * 2.0 - 1.0),
+					(float)(rnd.NextDouble())
+				);
+				sample = Vector3.Normalize(sample);
+				sample *= (float)rnd.NextDouble();
+
+				// Scale samples so they're more aligned closer to center
+				float scale = i / 64.0f;
+				scale = MathHelper.Lerp(0.1f, 1.0f, scale * scale);
+				ssaoKernel[i] = sample * scale;
+			}
+
+			for (int i = 0; i < 16; i++)
+			{
+				ssaoNoise[i] = new Vector3(
+					(float)(rnd.NextDouble() * 2.0 - 1.0),
+					(float)(rnd.NextDouble() * 2.0 - 1.0),
+					0.0f
+				);
+			}
+
+			noiseTexture = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, noiseTexture);
+			int noiseSize = (int)Math.Sqrt(ssaoNoise.Length);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgb16f, noiseSize, noiseSize, 0,
+						  PixelFormat.Rgb, PixelType.Float, ssaoNoise);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+
+			#endregion
+
 			_vao = GL.GenVertexArray();
 			_vbo = GL.GenBuffer();
 			_ibo = GL.GenBuffer();
 
 			GL.Enable(EnableCap.DepthTest);
 			GL.Enable(EnableCap.CullFace);
+			GL.Enable(EnableCap.Multisample);
 			GL.LineWidth(1);
 		}
 		#endregion
@@ -446,6 +530,10 @@ namespace OpenTK_Lighting
 
 			#region Base Rendering
 			GL.Viewport(0, 0, Size.X, Size.Y);
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, PostProcessing_FBO);
+			GL.DrawBuffers(2, new DrawBuffersEnum[] { DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1 });
+			GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
 			_baseShader.Use();
 			Matrix4 view = _camera.GetViewMatrix();
 			GL.UniformMatrix4(_baseShader.GetUniform("uView"), false, ref view);
@@ -471,7 +559,6 @@ namespace OpenTK_Lighting
 				GL.Uniform1(_baseShader.GetUniform($"lightSizes[{i}]"), light.Radius);
 			}
 
-			GL.Uniform3(_baseShader.GetUniform("uLightPos"), ref pointLightPosition);
 			GL.Uniform3(_baseShader.GetUniform("uCameraPos"), ref _camera.Position);
 			GL.Uniform1(_baseShader.GetUniform("normalView"), normalsView ? 1 : 0);
 			GL.Uniform1(_baseShader.GetUniform("useShadows"), useShadows ? 1 : 0);
@@ -514,6 +601,48 @@ namespace OpenTK_Lighting
 			}
 			#endregion
 
+			#region Post Processing
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+			GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+			_postProcessingShader.Use();
+
+			GL.ActiveTexture(TextureUnit.Texture0);
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_colorTexture);
+			GL.Uniform1(_postProcessingShader.GetUniform("colorTexture"), 0);
+
+			GL.ActiveTexture(TextureUnit.Texture1);
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_normalTexture);
+			GL.Uniform1(_postProcessingShader.GetUniform("normalTexture"), 1);
+
+			GL.ActiveTexture(TextureUnit.Texture2);
+			GL.BindTexture(TextureTarget.Texture2D, depthTexture);
+			GL.Uniform1(_postProcessingShader.GetUniform("depthTexture"), 2);
+
+			GL.ActiveTexture(TextureUnit.Texture3);
+			GL.BindTexture(TextureTarget.Texture2D, noiseTexture);
+			GL.Uniform1(_postProcessingShader.GetUniform("noiseTexture"), 3);
+
+			int kernelLocation = GL.GetUniformLocation(_postProcessingShader.Handle, "samples");
+			for (int i = 0; i < ssaoKernel.Length; i++)
+			{
+				GL.Uniform3(kernelLocation + i, ref ssaoKernel[i]);
+			}
+
+			Matrix4 inverseProjection = Matrix4.Invert(_projection);
+			GL.UniformMatrix4(_postProcessingShader.GetUniform("projection"), false, ref _projection);
+			GL.UniformMatrix4(_postProcessingShader.GetUniform("inverseProjection"), false, ref inverseProjection);
+
+			Vector2 noiseScale = new Vector2(Size.X / (int)Math.Sqrt(ssaoNoise.Length), Size.Y / (int)Math.Sqrt(ssaoNoise.Length));
+			GL.Uniform2(_postProcessingShader.GetUniform("noiseScale"), ref noiseScale);
+
+			GL.Uniform1(_postProcessingShader.GetUniform("useSSAO"), useSSAO ? 1 : 0);
+
+			GL.BindVertexArray(_fsQuadVAO);
+			GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+			GL.BindVertexArray(0);
+
+			#endregion
+
 			#region ImGUI STATS
 			double currentTime = GLFW.GetTime(); // or use a Stopwatch
 			_frameCount++;
@@ -550,6 +679,7 @@ namespace OpenTK_Lighting
 				ImGui.Checkbox("Use Specular Maps", ref useSpecularMaps);
 				ImGui.Checkbox("Use Normal Maps", ref useNormalMaps);
 				ImGui.Checkbox("Use Shadows", ref useShadows);
+				ImGui.Checkbox("Use SSAO", ref useSSAO);
 				ImGui.Unindent();
 			}
 
@@ -688,7 +818,7 @@ namespace OpenTK_Lighting
 						{
 							light.Color = (Vector3)lightColor;
 						}
-						ImGui.DragFloat($"Intensity##{light.Name}", ref light.Intensity, 0.05f, 0.0f, 10.0f, "%.2f");
+						ImGui.DragFloat($"Intensity##{light.Name}", ref light.Intensity, 0.05f, 0.0f, 100f, "%.2f");
 						ImGui.DragFloat($"Radius##{light.Name}", ref light.Radius, 0.05f, 0.0f, 10.0f, "%.2f");
 						ImGui.Unindent();
 					}
