@@ -85,13 +85,40 @@ namespace OpenTK_Lighting
 		public LightObject light1 = new("light1");
 		public LightObject light2 = new("light2");
 		public LightObject light3 = new("light3");
+
+		#region Create Renderable Object
+		string basePath = @"C:\Users\chill\source\repos\OpenTK Lighting\Objects\";
+		string GetTexturePath(string objectName, string textureName) => Path.Combine(basePath, objectName, "Textures", textureName);
+		RenderableObject CreateRenderableObject(
+			string name,
+			(List<float> verts, List<float> norms, List<uint> inds, List<float> uvs) geometry,
+			string objectDataName,
+			bool useColor = false,
+			bool useNormal = false,
+			bool useSpecular = false,
+			bool flipVerticalNormals = true
+		){
+			var obj = new RenderableObject(name, geometry.verts, geometry.norms, geometry.inds, geometry.uvs);
+			if (useColor)
+				obj.colorTexture = Image.LoadTexture(GetTexturePath(objectDataName, "color.png"), Image.TextureType.Color);
+
+			if (useSpecular)
+				obj.specularTexture = Image.LoadTexture(GetTexturePath(objectDataName, "specular.png"), Image.TextureType.Specular);
+
+			if (useNormal)
+				obj.normalTexture = Image.LoadTexture(GetTexturePath(objectDataName, "normal.png"), Image.TextureType.Normal);
+
+			obj.DisposeBuffers();
+			obj.InitializeBuffers(flipVerticalNormals);
+			return obj;
+		}
+		#endregion
+
 		protected override void OnLoad()
 		{
 			base.OnLoad();
 
 			#region Objects
-			string basePath = @"C:\Users\chill\source\repos\OpenTK Lighting\Objects\";
-			string GetTexturePath(string objectName, string textureName) => Path.Combine(basePath, objectName, "Textures", textureName);
 
 			#region Cube Data
 			List<float> cubeVertices = new List<float>
@@ -262,51 +289,69 @@ namespace OpenTK_Lighting
 			#endregion
 
 			#region Box With Frame
-			BoxWithFrame = new RenderableObject("Box With Frame", cubeVertices, cubeNormals, cubeIndices, cubeTexCoords);
-			BoxWithFrame.colorTexture = Image.LoadTexture(GetTexturePath("BoxWithFrame", "color.png"), Image.TextureType.Color);
-			BoxWithFrame.specularTexture = Image.LoadTexture(GetTexturePath("BoxWithFrame", "specular.png"), Image.TextureType.Specular);
-			BoxWithFrame.normalTexture = Image.LoadTexture(GetTexturePath("BoxWithFrame", "normal.png"), Image.TextureType.Normal);
-
-			BoxWithFrame.DisposeBuffers();
-			BoxWithFrame.InitializeBuffers(false);
+			BoxWithFrame = CreateRenderableObject(
+				name: "Box With Frame",
+				geometry: (cubeVertices, cubeNormals, cubeIndices, cubeTexCoords),
+				objectDataName: "BoxWithFrame",
+				useColor: true,
+				useNormal: true,
+				useSpecular: true,
+				flipVerticalNormals: false
+			);
 			BoxWithFrame.specularStrength = 8;
 			_objects.Add(BoxWithFrame);
 			#endregion
 
 			#region Play Cube
-			PlayCube = new RenderableObject("Play Cube", cubeVertices, cubeNormals, cubeIndices, cubeTexCoords) { Position = new Vector3(2, 0, 0) };
-			PlayCube.colorTexture = Image.LoadTexture(GetTexturePath("PlayCube", "color.png"), Image.TextureType.Color);
-			PlayCube.normalTexture = Image.LoadTexture(GetTexturePath("PlayCube", "normal.png"), Image.TextureType.Normal);
-			PlayCube.DisposeBuffers();
-			PlayCube.InitializeBuffers(true);
+			PlayCube = CreateRenderableObject(
+				name: "Play Cube",
+				geometry: (cubeVertices, cubeNormals, cubeIndices, cubeTexCoords),
+				objectDataName: "PlayCube",
+				useColor: true,
+				useNormal: true
+			);
+			PlayCube.Position = new Vector3(2, 0, 0);
 			_objects.Add(PlayCube);
 			#endregion
 
 			#region Floor
-			plane = new RenderableObject("Floor", planeVertices, planeNormals, planeIndices, planeTexCoords) { Position = new Vector3(0, -0.5f, 0), Rotation = new Vector3(0, 0, 0) };
-			plane.colorTexture = Image.LoadTexture(GetTexturePath("Bricks", "color.png"), Image.TextureType.Color);
-			plane.normalTexture = Image.LoadTexture(GetTexturePath("Bricks", "normal.png"), Image.TextureType.Normal);
-			plane.DisposeBuffers();
-			plane.InitializeBuffers(false);
+			plane = CreateRenderableObject(
+				name: "Floor",
+				geometry: (planeVertices, planeNormals, planeIndices, planeTexCoords),
+				objectDataName: "Bricks",
+				useColor: true,
+				useNormal: true,
+				flipVerticalNormals: false
+			);
+			plane.Position = new Vector3(0, -0.5f, 0);
 			plane.specularStrength = 1;
 			_objects.Add(plane);
 			#endregion
 
 			#region Lighting Text
-			var (verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\\Users\\chill\\source\\repos\\OpenTK Lighting\\Objects\\Lighting Text\\Mesh\\LightingText.obj");
-			lightingText = new RenderableObject("Lighting Text", verts, norms, inds, uvs) { Position = new Vector3(-2.5f, 0.25f, 0.55f), Scale = new Vector3(3,3,3), Rotation = new Vector3(0,10.7f,9.45f)};
-			lightingText.colorTexture = Image.LoadTexture(GetTexturePath("Lighting Text", "color.png"), Image.TextureType.Color);
-			lightingText.DisposeBuffers();
-			lightingText.InitializeBuffers(true);
+			var (verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Lighting Text\Mesh\LightingText.obj");
+			lightingText = CreateRenderableObject(
+				name: "Lighting Text",
+				geometry: (verts, norms, inds, uvs),
+				objectDataName: "Lighting Text",
+				useColor: true
+			);
+			lightingText.Position = new Vector3(-2.5f, 0.25f, 0.55f);
+			lightingText.Scale = new Vector3(3, 3, 3);
+			lightingText.Rotation = new Vector3(0, 10.7f, 9.45f);
 			_objects.Add(lightingText);
 			#endregion
 
 			#region Decoration Gizmo
-			(verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\\Users\\chill\\source\\repos\\OpenTK Lighting\\Objects\\Decoration Gizmo\\Mesh\\DecorationGizmo.obj");
-			decorationGizmo = new RenderableObject("Decoration Gizmo", verts, norms, inds, uvs) { Position = new Vector3(5f, -0.5f, -1.0f), Rotation = new Vector3(0, -90-15, 0) };
-			decorationGizmo.colorTexture = Image.LoadTexture(GetTexturePath("Decoration Gizmo", "color.png"), Image.TextureType.Color);
-			decorationGizmo.DisposeBuffers();
-			decorationGizmo.InitializeBuffers(true);
+			(verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Decoration Gizmo\Mesh\DecorationGizmo.obj");
+			decorationGizmo = CreateRenderableObject(
+				name: "Decoration Gizmo",
+				geometry: (verts, norms, inds, uvs),
+				objectDataName: "Decoration Gizmo",
+				useColor: true
+			);
+			decorationGizmo.Position = new Vector3(5f, -0.5f, -1.0f);
+			decorationGizmo.Rotation = new Vector3(0, -90 - 15, 0);
 			_objects.Add(decorationGizmo);
 			#endregion
 
