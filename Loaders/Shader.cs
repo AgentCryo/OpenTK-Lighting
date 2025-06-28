@@ -13,7 +13,8 @@ namespace OpenTK_Lighting.Loaders
     {
         public int Handle { get; private set; }
 
-        public Shader(string vertexPath, string fragmentPath, string geometryPath = null)
+		private Dictionary<string, int> _uniformLocations = new();
+		public Shader(string vertexPath, string fragmentPath, string geometryPath = null)
         {
             string vertexSource = File.ReadAllText(vertexPath);
             string fragmentSource = File.ReadAllText(fragmentPath);
@@ -85,6 +86,16 @@ namespace OpenTK_Lighting.Loaders
 
         public void Use() => GL.UseProgram(Handle);
 
-        public int GetUniform(string name) => GL.GetUniformLocation(Handle, name);
-    }
+		public int GetUniform(string name)
+		{
+			if (_uniformLocations.TryGetValue(name, out int location)) return location;
+
+			location = GL.GetUniformLocation(Handle, name);
+
+			if (location == -1) Console.WriteLine($"Warning: Uniform '{name}' not found in shader {Handle}!");
+
+			_uniformLocations[name] = location;
+			return location;
+		}
+	}
 }

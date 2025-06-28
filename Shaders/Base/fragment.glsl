@@ -43,8 +43,8 @@ uniform float lightSizes[MAX_POINT_LIGHTS];
 uniform int numPointLights;
 
 // ====== CONSTANTS ======
-const int NUM_BLOCKER_SAMPLES = 32;
-const int NUM_PCF_SAMPLES = 64;
+const int NUM_BLOCKER_SAMPLES = 8;
+const int NUM_PCF_SAMPLES = 16;
 const float farPlane = 1000.0;
 const float PI = 3.14159265359;
 const float GOLDEN_ANGLE = 2.39996322973;
