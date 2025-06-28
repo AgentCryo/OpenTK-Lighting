@@ -9,10 +9,9 @@ uniform mat4 uLightProjection;
 
 out vec3 FragPos;
 
-int face = 0;
 void main()
 {
-    face = gl_InstanceID;
+    int face = gl_InstanceID;
 
     vec4 worldPos = uModel * vec4(aPos, 1.0);
     FragPos = worldPos.xyz;

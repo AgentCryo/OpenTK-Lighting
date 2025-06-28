@@ -38,8 +38,8 @@ namespace OpenTK_Lighting.ObjectTypes
 				GL.TexImage2D(TextureTarget.TextureCubeMapPositiveX + i, 0, PixelInternalFormat.DepthComponent, ShadowMapResolution, ShadowMapResolution, 0,
 					PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
 
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 			GL.TexParameter(TextureTarget.TextureCubeMap, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
@@ -59,23 +59,6 @@ namespace OpenTK_Lighting.ObjectTypes
 
 		public void UpdateViewMatrices()
 		{
-			//Vector3[] directions = new Vector3[]
-			//{
-			//Vector3.UnitX, -Vector3.UnitX,
-			//Vector3.UnitY, -Vector3.UnitY,
-			//Vector3.UnitZ, -Vector3.UnitZ
-			//};
-
-			//Vector3[] ups = new Vector3[]
-			//{
-			//Vector3.UnitY, Vector3.UnitY,
-			//Vector3.UnitZ, -Vector3.UnitZ,
-			//Vector3.UnitY, Vector3.UnitY
-			//};
-
-			//for (int i = 0; i < 6; i++)
-			//	ViewMatrices[i] = Matrix4.LookAt(Position, Position + directions[i], ups[i]);
-
 			Vector3[] directions = {
 				new Vector3( 1,  0,  0), // +X
 				new Vector3(-1,  0,  0), // -X

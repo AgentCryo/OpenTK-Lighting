@@ -55,12 +55,19 @@ float linearizeDepth(float depth) {
     return depth * farPlane;
 }
 
-vec2 vogelDiskSample(int i, int nSamples, float radius) {
+vec2 vogelDiskSample(int i, int nSamples, float radius, vec3 fragPos) {
     float t = float(i) / float(nSamples);
     float r = radius * pow(t, 0.75); // 0.5 = uniform, <1.0 = more central density
 
     float theta = float(i) * GOLDEN_ANGLE;
-    return vec2(r * cos(theta), r * sin(theta));
+
+    vec2 randomOffset = vec2(
+        fract(sin(dot(fragPos.xy, vec2(12.9898, 78.233))) * 43758.5453),
+        fract(sin(dot(fragPos.yz, vec2(93.9898, 67.345))) * 12345.6789)
+    );
+
+    vec2 offset = vec2(cos(theta), sin(theta));
+    return offset * r + randomOffset * radius * 0.3;
 }
 
 float penumbraSize(float receiverDepth, float blockerDepth, float lightRadius) {
@@ -68,7 +75,7 @@ float penumbraSize(float receiverDepth, float blockerDepth, float lightRadius) {
 }
 
 // ====== SHADOW FUNCTIONS ======
-float avgBlockerDepth(vec3 fragToLight, samplerCube cubeMap, float searchRadius) {
+float avgBlockerDepth(vec3 fragToLight, samplerCube cubeMap, float searchRadius, vec3 fragPos) {
     float currentDepth = length(fragToLight);
     vec3 L = normalize(fragToLight);
 
@@ -81,7 +88,7 @@ float avgBlockerDepth(vec3 fragToLight, samplerCube cubeMap, float searchRadius)
     float angularRadius = searchRadius / currentDepth;
 
     for (int i = 0; i < NUM_BLOCKER_SAMPLES; ++i) {
-        vec2 offset = vogelDiskSample(i, NUM_BLOCKER_SAMPLES, angularRadius);
+        vec2 offset = vogelDiskSample(i, NUM_BLOCKER_SAMPLES, angularRadius, fragPos);
         vec3 sampleDir = normalize(L + tangent * offset.x + bitangent * offset.y);
 
         float sampleDepth = texture(cubeMap, sampleDir).r;
@@ -97,7 +104,7 @@ float avgBlockerDepth(vec3 fragToLight, samplerCube cubeMap, float searchRadius)
     return avgBlocker / float(blockerCount);
 }
 
-float PCFShadow(vec3 fragToLight, samplerCube cubeMap, float filterRadius, vec3 fragNormal) {
+float PCFShadow(vec3 fragToLight, samplerCube cubeMap, float filterRadius, vec3 fragNormal, vec3 fragPos) {
     float shadow = 0.0;
     float receiverDepth = length(fragToLight);
     vec3 L = normalize(fragToLight);
@@ -111,7 +118,7 @@ float PCFShadow(vec3 fragToLight, samplerCube cubeMap, float filterRadius, vec3 
    float bias = max(0.01 * (1.0 - dot(fragNormal, L)), 0.001);
 
     for (int i = 0; i < NUM_PCF_SAMPLES; ++i) {
-        vec2 offset = vogelDiskSample(i, NUM_PCF_SAMPLES, angularRadius);
+        vec2 offset = vogelDiskSample(i, NUM_PCF_SAMPLES, angularRadius, fragPos);
         vec3 sampleDir = normalize(L + tangent * offset.x + bitangent * offset.y);
         float sampleDepth = texture(cubeMap, sampleDir).r;
         sampleDepth = linearizeDepth(sampleDepth);
@@ -128,14 +135,14 @@ float ShadowCalculation(vec3 fragPos, vec3 lightPos, samplerCube cubeMap, vec3 f
     float receiverDepth = length(fragToLight);
 
     float searchRadius = 0.05 * receiverDepth;
-    float avgBlocker = avgBlockerDepth(fragToLight, cubeMap, searchRadius);
+    float avgBlocker = avgBlockerDepth(fragToLight, cubeMap, searchRadius, fragPos);
 
     if (avgBlocker == -1.0) return 0.0;
 
     float filterRadius = penumbraSize(receiverDepth, avgBlocker, lightRadius);
     filterRadius = clamp(filterRadius, 0.001, 0.2 * receiverDepth);
 
-    return PCFShadow(fragToLight, cubeMap, filterRadius, fragNormal);
+    return PCFShadow(fragToLight, cubeMap, filterRadius, fragNormal, fragPos);
 }
 
 // ====== MATERIAL HELPERS ======
