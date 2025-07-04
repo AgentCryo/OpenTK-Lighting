@@ -31,12 +31,12 @@ namespace OpenTK_Lighting.Loaders
 				switch (type)
 				{
 					case TextureType.Normal:
-						internalFormat = (int)PixelInternalFormat.Rgba; // No sRGB for normal maps
+						internalFormat = (int)PixelInternalFormat.Rgba;
 						break;
 					case TextureType.Specular:
 					case TextureType.Color:
 					default:
-						internalFormat = (int)PixelInternalFormat.SrgbAlpha; // sRGB for color/specular
+						internalFormat = (int)PixelInternalFormat.SrgbAlpha;
 						break;
 				}
 

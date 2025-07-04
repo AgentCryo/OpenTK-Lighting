@@ -27,7 +27,6 @@ namespace OpenTK_Lighting.ObjectTypes
 
 		public LightObject(string name) { Name = name; }
 
-		// Initialize shadow resources for this light
 		public void InitShadowResources()
 		{
 			ShadowFBO = GL.GenFramebuffer();
@@ -49,9 +48,6 @@ namespace OpenTK_Lighting.ObjectTypes
 			GL.DrawBuffer(DrawBufferMode.None);
 			GL.ReadBuffer(ReadBufferMode.None);
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-
-			//GL.TextureParameter(DepthCubeMap, TextureParameterName.TextureCompareMode, (int)TextureCompareMode.CompareRefToTexture);
-			//GL.TextureParameter(DepthCubeMap, TextureParameterName.TextureCompareFunc, (int)All.Less);
 
 			Projection = Matrix4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(90f), 1f, 0.1f, 1000f);
 			UpdateViewMatrices();

@@ -11,8 +11,7 @@ class Program
 		var nativeSettings = new NativeWindowSettings()
 		{
 			Size = new Vector2i(1280, 720),
-			Title = "Lighting OpenTK",
-			NumberOfSamples = 4
+			Title = "Lighting OpenTK"
 		};
 		nativeSettings.WindowState = WindowState.Fullscreen;
 		using var window = new MainWindow(GameWindowSettings.Default, nativeSettings);

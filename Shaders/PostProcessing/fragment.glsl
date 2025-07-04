@@ -15,20 +15,17 @@ uniform bool useSSAO;
 
 out vec4 FragColor;
 
-// Constants
 const float radius = 0.1;
 const float bias = 0.025;
-const float near = 0.1;  // near plane
-const float far = 1000.0; // far plane
+const float near = 0.1;
+const float far = 1000.0;
 
-// Linearize non-linear depth from depth buffer
 float LinearizeDepth(float depth)
 {
     float z = depth * 2.0 - 1.0; // back to NDC
     return (2.0 * near * far) / (far + near - z * (far - near));
 }
 
-// Get view space position from depth and UV
 vec3 getViewPos(float depth, vec2 uv)
 {
     float z = depth * 2.0 - 1.0;
@@ -53,7 +50,7 @@ void main()
         float occlusion = 0.0;
         for (int i = 0; i < 64; ++i)
         {
-            vec3 sampleVec = TBN * samples[i];  // rotate sample vector to view space
+            vec3 sampleVec = TBN * samples[i];
             sampleVec = fragPos + sampleVec * radius;
 
             vec4 offset = projection * vec4(sampleVec, 1.0);
@@ -64,9 +61,8 @@ void main()
             if (sampleDepth >= 1.0) continue;
 
             float sampleDepthLinear = LinearizeDepth(sampleDepth);
-            float samplePosZ = -sampleVec.z; // view space z is negative in front of camera
+            float samplePosZ = -sampleVec.z;
 
-            // Range check: difference between sample depth and sample point distance
             float rangeCheck = smoothstep(0.0, 1.0, radius / abs(samplePosZ - sampleDepthLinear));
 
             if ((sampleDepthLinear + bias) < samplePosZ)

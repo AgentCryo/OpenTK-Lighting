@@ -33,24 +33,6 @@ namespace OpenTK_Lighting
 		private bool useSpecularMaps = true;
 		private bool useNormalMaps = true;
 		private bool useShadows = true;
-		Vector3 pointLightPosition = new Vector3(6, 3, 5);
-		Vector3[] directions = {
-				new( 1,  0,  0), // +X
-				new(-1,  0,  0), // -X
-				new( 0,  1,  0), // +Y
-				new( 0, -1,  0), // -Y
-				new( 0,  0,  1), // +Z
-				new( 0,  0, -1), // -Z
-			};
-
-		Vector3[] ups = {
-				new(0, -1,  0), // +X
-				new(0, -1,  0), // -X
-				new(0,  0,  1), // +Y
-				new(0,  0, -1), // -Y
-				new(0, -1,  0), // +Z
-				new(0, -1,  0), // -Z
-			};
 
 		List<LightObject> pointLights = new List<LightObject>();
 		#endregion
@@ -369,12 +351,6 @@ namespace OpenTK_Lighting
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\vertex.glsl",
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\fragment.glsl"
 			);
-
-			//light1.Position = new Vector3(0, 4, 3);
-			//light1.Color = new Vector3(1,1,1);
-			//light1.InitShadowResources();
-			//pointLights.Add(light1);
-
 			light1.Position = new Vector3(0, 4, 3);
 			light1.Color = new Vector3(1, 0, 0);
 			light1.InitShadowResources();
@@ -459,7 +435,6 @@ namespace OpenTK_Lighting
 				sample = Vector3.Normalize(sample);
 				sample *= (float)rnd.NextDouble();
 
-				// Scale samples so they're more aligned closer to center
 				float scale = i / 64.0f;
 				scale = MathHelper.Lerp(0.1f, 1.0f, scale * scale);
 				ssaoKernel[i] = sample * scale;
@@ -483,7 +458,7 @@ namespace OpenTK_Lighting
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-			// Create SSAO FBO
+
 			int ssaoFBO = GL.GenFramebuffer();
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, ssaoFBO);
 
@@ -500,7 +475,6 @@ namespace OpenTK_Lighting
 				Console.WriteLine("SSAO Framebuffer not complete!");
 			}
 
-			// Create single-sample textures for resolved FBO
 			postProcessing_colorTextureResolved = GL.GenTexture();
 			GL.BindTexture(TextureTarget.Texture2D, postProcessing_colorTextureResolved);
 			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
@@ -525,7 +499,6 @@ namespace OpenTK_Lighting
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 
-			// Create single-sample framebuffer for resolved MSAA
 			PostProcessingResolved_FBO = GL.GenFramebuffer();
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, PostProcessingResolved_FBO);
 			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, postProcessing_colorTextureResolved, 0);
@@ -586,8 +559,6 @@ namespace OpenTK_Lighting
 			base.OnUpdateFrame(args);
 
 			BoxWithFrame.Rotation.Y -= (float)args.Time * 60;
-			//pointLightPosition.X = float.Sin(lightValue)*6;
-			//pointLightPosition.Z = float.Cos(lightValue+=(float)args.Time/12)*6;
 
 			foreach(LightObject light in pointLights) light.UpdateViewMatrices();
 
@@ -677,7 +648,6 @@ namespace OpenTK_Lighting
 			{
 				var light = pointLights[i];
 
-				// Bind shadow cubemap to texture unit;
 				GL.ActiveTexture(TextureUnit.Texture0 + i);
 				GL.BindTexture(TextureTarget.TextureCubeMap, light.DepthCubeMap);
 				GL.Uniform1(_baseShader.GetUniform($"shadowMaps[{i}]"), i);
@@ -741,7 +711,6 @@ namespace OpenTK_Lighting
 				_drawCalls++;
 			}
 
-			// Done rendering base scene to multisampled FBO
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
 			#endregion
@@ -779,7 +748,7 @@ namespace OpenTK_Lighting
 
 			#region Post Processing
 
-			GL.BindFramebuffer(FramebufferTarget.Framebuffer, viewportFBO);  // bind resolved single-sample FBO
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, viewportFBO);
 			GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
 			_postProcessingShader.Use();
@@ -824,7 +793,7 @@ namespace OpenTK_Lighting
 			#endregion
 
 			#region ImGUI STATS
-			double currentTime = GLFW.GetTime(); // or use a Stopwatch
+			double currentTime = GLFW.GetTime();
 			_frameCount++;
 
 			if (currentTime - _lastTime >= 1.0)
@@ -855,7 +824,7 @@ namespace OpenTK_Lighting
 			var io = ImGui.GetIO();
 			var viewport = ImGui.GetMainViewport();
 
-			// === Main Dockspace Window ===
+			#region Main Space Dock Window
 			ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
 			ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
 
@@ -878,8 +847,9 @@ namespace OpenTK_Lighting
 			uint dockspaceID = ImGui.GetID("DockSpace");
 			ImGui.DockSpace(dockspaceID, System.Numerics.Vector2.Zero, ImGuiDockNodeFlags.None);
 			ImGui.End();
+			#endregion
 
-			// === Viewport Window (optional) ===
+			#region Viewport Window
 			ImGuiWindowFlags viewportFlags;
 			if (_viewportFullscreen)
 			{
@@ -903,18 +873,15 @@ namespace OpenTK_Lighting
 
 			if (windowAspect > textureAspect)
 			{
-				// Window is wider than image aspect — fit height
 				imageSize.Y = avail.Y;
 				imageSize.X = imageSize.Y * textureAspect;
 			}
 			else
 			{
-				// Window is taller than image aspect — fit width
 				imageSize.X = avail.X;
 				imageSize.Y = imageSize.X / textureAspect;
 			}
 
-			// Center image
 			var cursorPos = ImGui.GetCursorPos();
 			float offsetX = (avail.X - imageSize.X) * 0.5f;
 			float offsetY = (avail.Y - imageSize.Y) * 0.5f;
@@ -950,6 +917,7 @@ namespace OpenTK_Lighting
 
 			ImGui.PopStyleVar();
 			ImGui.End();
+			#endregion
 
 			// === Stats ===
 			ImGui.Begin("Stats");
@@ -972,7 +940,7 @@ namespace OpenTK_Lighting
 			}
 			ImGui.End();
 
-			// === Objects ===
+			#region Objects
 			ImGui.Begin("Objects");
 			if (ImGui.CollapsingHeader("Scene Objects"))
 			{
@@ -1042,8 +1010,9 @@ namespace OpenTK_Lighting
 				ImGui.Unindent();
 			}
 			ImGui.End();
+			#endregion
 
-			// === Lights ===
+			#region Lights
 			ImGui.Begin("Lights");
 			if (ImGui.CollapsingHeader("Scene Lights"))
 			{
@@ -1082,6 +1051,7 @@ namespace OpenTK_Lighting
 				ImGui.Unindent();
 			}
 			ImGui.End();
+			#endregion
 		}
 		#endregion
 	}

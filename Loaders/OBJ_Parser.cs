@@ -15,19 +15,15 @@ namespace OpenTK_Lighting.Loaders
 		List<float> Normals            // xyz xyz ...
 	) ParseOBJFile(string filePath)
 		{
-			//temporary storage for the raw OBJ data;
-			var tempPositions = new List<Vector3>();   // v
-			var tempTexCoords = new List<Vector2>();   // vt
-			var tempNormals = new List<Vector3>();   // vn
+			var tempPositions = new List<Vector3>();
+			var tempTexCoords = new List<Vector2>();
+			var tempNormals = new List<Vector3>();
 
-			//final buffers;
 			var verticesOut = new List<float>();
 			var texCoordsOut = new List<float>();
 			var normalsOut = new List<float>();
 			var indicesOut = new List<uint>();
 
-			// Each unique (v,vt,vn) triple becomes one “final” vertex.
-			// Dictionary maps that triple -> new index.
 			var vertexCache = new Dictionary<(int v, int vt, int vn), uint>();
 
 			foreach (var line in File.ReadLines(filePath))
@@ -61,7 +57,6 @@ namespace OpenTK_Lighting.Loaders
 					case "f":   // face: f v/vt/vn ...
 						Span<string> faceTokens = parts.AsSpan()[1..];
 
-						// triangulate n-gons on the fly (fan method);
 						for (int i = 1; i < faceTokens.Length - 1; ++i)
 						{
 							AddVertex(faceTokens[0]);
@@ -111,7 +106,7 @@ namespace OpenTK_Lighting.Loaders
 						normalsOut.AddRange(new[] { 0f, 0f, 0f });
 					}
 
-					index = (uint)(verticesOut.Count / 3 - 1);  // one position per vertex
+					index = (uint)(verticesOut.Count / 3 - 1);
 					vertexCache[key] = index;
 				}
 
