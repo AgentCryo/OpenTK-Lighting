@@ -57,13 +57,20 @@ namespace OpenTK_Lighting
 
 		#region Post Processing Variables
 		int PostProcessing_FBO;
+		int PostProcessingResolved_FBO;
 		int postProcessing_colorTexture, postProcessing_normalTexture, depthTexture;
+		int postProcessing_colorTextureResolved, postProcessing_normalTextureResolved, depthTextureResolved;
 		int _fsQuadVAO;
 		Shader _postProcessingShader;
 		Vector3[] ssaoKernel = new Vector3[64];
 		Vector3[] ssaoNoise = new Vector3[16];
 		int noiseTexture;
 		bool useSSAO = true;
+		#endregion
+
+		#region Viewport Variables
+		int viewportFBO;
+		int viewportTexture;
 		#endregion
 
 		private ImGuiController _controller;
@@ -404,36 +411,29 @@ namespace OpenTK_Lighting
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\PostProcessing\vertex.glsl",
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\PostProcessing\fragment.glsl"
 			);
+			int samples = 4;
 
 			postProcessing_colorTexture = GL.GenTexture();
-			GL.BindTexture(TextureTarget.Texture2D, postProcessing_colorTexture);
-			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+			GL.BindTexture(TextureTarget.Texture2DMultisample, postProcessing_colorTexture);
+			GL.TexImage2DMultisample((TextureTargetMultisample)TextureTarget.Texture2DMultisample, samples, PixelInternalFormat.Rgba8, Size.X, Size.Y, true);
+			GL.BindTexture(TextureTarget.Texture2DMultisample, 0);
 
 			postProcessing_normalTexture = GL.GenTexture();
-			GL.BindTexture(TextureTarget.Texture2D, postProcessing_normalTexture);
-			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba16f, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.Float, IntPtr.Zero);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+			GL.BindTexture(TextureTarget.Texture2DMultisample, postProcessing_normalTexture);
+			GL.TexImage2DMultisample((TextureTargetMultisample)TextureTarget.Texture2DMultisample, samples, PixelInternalFormat.Rgba16f, Size.X, Size.Y, true);
+			GL.BindTexture(TextureTarget.Texture2DMultisample, 0);
 
 			depthTexture = GL.GenTexture();
-			GL.BindTexture(TextureTarget.Texture2D, depthTexture);
-			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent24, Size.X, Size.Y, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
-			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+			GL.BindTexture(TextureTarget.Texture2DMultisample, depthTexture);
+			GL.TexImage2DMultisample((TextureTargetMultisample)TextureTarget.Texture2DMultisample, samples, PixelInternalFormat.DepthComponent24, Size.X, Size.Y, true);
+			GL.BindTexture(TextureTarget.Texture2DMultisample, 0);
 
 			PostProcessing_FBO = GL.GenFramebuffer();
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, PostProcessing_FBO);
-			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, postProcessing_colorTexture, 0);
-			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, postProcessing_normalTexture, 0);
-			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depthTexture, 0);
+
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2DMultisample, postProcessing_colorTexture, 0);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2DMultisample, postProcessing_normalTexture, 0);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2DMultisample, depthTexture, 0);
 
 			DrawBuffersEnum[] drawBuffers = { DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1 };
 			GL.DrawBuffers(drawBuffers.Length, drawBuffers);
@@ -483,7 +483,88 @@ namespace OpenTK_Lighting
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
 			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+			// Create SSAO FBO
+			int ssaoFBO = GL.GenFramebuffer();
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, ssaoFBO);
 
+			int ssaoColorBuffer = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, ssaoColorBuffer);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.R8, Size.X, Size.Y, 0, PixelFormat.Red, PixelType.Float, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, ssaoColorBuffer, 0);
+
+			if (GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != FramebufferErrorCode.FramebufferComplete)
+			{
+				Console.WriteLine("SSAO Framebuffer not complete!");
+			}
+
+			// Create single-sample textures for resolved FBO
+			postProcessing_colorTextureResolved = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_colorTextureResolved);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba8, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+			postProcessing_normalTextureResolved = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_normalTextureResolved);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba16f, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.Float, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+			depthTextureResolved = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, depthTextureResolved);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.DepthComponent24, Size.X, Size.Y, 0, PixelFormat.DepthComponent, PixelType.Float, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
+
+			// Create single-sample framebuffer for resolved MSAA
+			PostProcessingResolved_FBO = GL.GenFramebuffer();
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, PostProcessingResolved_FBO);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, postProcessing_colorTextureResolved, 0);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment1, TextureTarget.Texture2D, postProcessing_normalTextureResolved, 0);
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depthTextureResolved, 0);
+
+			DrawBuffersEnum[] drawBuffers2 = { DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1 };
+			GL.DrawBuffers(drawBuffers2.Length, drawBuffers2);
+
+			if (GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != FramebufferErrorCode.FramebufferComplete)
+			{
+				throw new Exception("PostProcessing resolved framebuffer not complete");
+			}
+
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+			#endregion
+
+			#region Viewport Init
+			viewportFBO = GL.GenFramebuffer();
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, viewportFBO);
+
+			viewportTexture = GL.GenTexture();
+			GL.BindTexture(TextureTarget.Texture2D, viewportTexture);
+			GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba32f, Size.X, Size.Y, 0, PixelFormat.Rgba, PixelType.Float, IntPtr.Zero);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
+			GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+
+			GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, viewportTexture, 0);
+
+			DrawBuffersEnum[] attachments = { DrawBuffersEnum.ColorAttachment0 };
+			GL.DrawBuffers(attachments.Length, attachments);
+
+			if (GL.CheckFramebufferStatus(FramebufferTarget.Framebuffer) != FramebufferErrorCode.FramebufferComplete)
+			{
+				throw new Exception("SSAO Framebuffer is not complete!");
+			}
+
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 			#endregion
 
 			_vao = GL.GenVertexArray();
@@ -579,6 +660,7 @@ namespace OpenTK_Lighting
 			#endregion
 
 			#region Base Rendering
+
 			GL.Viewport(0, 0, Size.X, Size.Y);
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, PostProcessing_FBO);
 			GL.DrawBuffers(2, new DrawBuffersEnum[] { DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1 });
@@ -601,10 +683,8 @@ namespace OpenTK_Lighting
 				GL.Uniform1(_baseShader.GetUniform($"shadowMaps[{i}]"), i);
 
 				GL.Uniform3(_baseShader.GetUniform($"lightPositions[{i}]"), ref light.Position);
-
 				GL.Uniform3(_baseShader.GetUniform($"lightColors[{i}]"), ref light.Color);
 				GL.Uniform1(_baseShader.GetUniform($"lightIntensities[{i}]"), light.Intensity);
-
 				GL.Uniform1(_baseShader.GetUniform($"lightActives[{i}]"), light.Active ? 1 : 0);
 				GL.Uniform1(_baseShader.GetUniform($"lightSizes[{i}]"), light.Radius);
 			}
@@ -612,7 +692,6 @@ namespace OpenTK_Lighting
 			GL.Uniform3(_baseShader.GetUniform("uCameraPos"), ref _camera.Position);
 			GL.Uniform1(_baseShader.GetUniform("normalView"), normalsView ? 1 : 0);
 			GL.Uniform1(_baseShader.GetUniform("useShadows"), useShadows ? 1 : 0);
-			
 			GL.Uniform1(_baseShader.GetUniform("material.shininess"), 32.0f);
 
 			foreach (var obj in _objects)
@@ -625,15 +704,24 @@ namespace OpenTK_Lighting
 					GL.ActiveTexture(TextureUnit.Texture1 + pointLights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, obj.colorTexture);
 					GL.Uniform1(_baseShader.GetUniform("material.colorTexture"), 1 + pointLights.Count);
-				} else { GL.Uniform1(_baseShader.GetUniform("material.useColorTexture"), 0); }
+				}
+				else
+				{
+					GL.Uniform1(_baseShader.GetUniform("material.useColorTexture"), 0);
+				}
 				#endregion
 				#region Specular
-				if (obj.specularTexture != -1) {
+				if (obj.specularTexture != -1)
+				{
 					GL.Uniform1(_baseShader.GetUniform("material.useSpecularTexture"), useSpecularMaps ? 1 : 0);
 					GL.ActiveTexture(TextureUnit.Texture2 + pointLights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, obj.specularTexture);
 					GL.Uniform1(_baseShader.GetUniform("material.specularTexture"), 2 + pointLights.Count);
-				} else { GL.Uniform1(_baseShader.GetUniform("material.useSpecularTexture"), 0); }
+				}
+				else
+				{
+					GL.Uniform1(_baseShader.GetUniform("material.useSpecularTexture"), 0);
+				}
 				#endregion
 				#region Normal
 				if (obj.normalTexture != -1)
@@ -643,29 +731,69 @@ namespace OpenTK_Lighting
 					GL.BindTexture(TextureTarget.Texture2D, obj.normalTexture);
 					GL.Uniform1(_baseShader.GetUniform("material.normalTexture"), 3 + pointLights.Count);
 				}
-				else { GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), 0); }
+				else
+				{
+					GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), 0);
+				}
 				#endregion
 				GL.Uniform1(_baseShader.GetUniform("material.specular"), obj.specularStrength);
 				obj.Render(_baseShader);
 				_drawCalls++;
 			}
+
+			// Done rendering base scene to multisampled FBO
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+			#endregion
+
+			#region MSAA Resolve (Blit multisampled FBO to single-sample FBO)
+
+			GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, PostProcessing_FBO);             // multisample FBO
+			GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, PostProcessingResolved_FBO);     // single-sample FBO
+
+			GL.ReadBuffer(ReadBufferMode.ColorAttachment0);
+			GL.DrawBuffer(DrawBufferMode.ColorAttachment0);
+			GL.BlitFramebuffer(
+				0, 0, Size.X, Size.Y,
+				0, 0, Size.X, Size.Y,
+				ClearBufferMask.ColorBufferBit,
+				BlitFramebufferFilter.Nearest);
+
+			GL.ReadBuffer(ReadBufferMode.ColorAttachment1);
+			GL.DrawBuffer(DrawBufferMode.ColorAttachment1);
+			GL.BlitFramebuffer(
+				0, 0, Size.X, Size.Y,
+				0, 0, Size.X, Size.Y,
+				ClearBufferMask.ColorBufferBit,
+				BlitFramebufferFilter.Nearest);
+
+			GL.BlitFramebuffer(
+				0, 0, Size.X, Size.Y,
+				0, 0, Size.X, Size.Y,
+				ClearBufferMask.DepthBufferBit,
+				BlitFramebufferFilter.Nearest);
+
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
 			#endregion
 
 			#region Post Processing
-			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, viewportFBO);  // bind resolved single-sample FBO
 			GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
 			_postProcessingShader.Use();
 
 			GL.ActiveTexture(TextureUnit.Texture0);
-			GL.BindTexture(TextureTarget.Texture2D, postProcessing_colorTexture);
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_colorTextureResolved);
 			GL.Uniform1(_postProcessingShader.GetUniform("colorTexture"), 0);
 
 			GL.ActiveTexture(TextureUnit.Texture1);
-			GL.BindTexture(TextureTarget.Texture2D, postProcessing_normalTexture);
+			GL.BindTexture(TextureTarget.Texture2D, postProcessing_normalTextureResolved);
 			GL.Uniform1(_postProcessingShader.GetUniform("normalTexture"), 1);
 
 			GL.ActiveTexture(TextureUnit.Texture2);
-			GL.BindTexture(TextureTarget.Texture2D, depthTexture);
+			GL.BindTexture(TextureTarget.Texture2D, depthTextureResolved);
 			GL.Uniform1(_postProcessingShader.GetUniform("depthTexture"), 2);
 
 			GL.ActiveTexture(TextureUnit.Texture3);
@@ -691,6 +819,8 @@ namespace OpenTK_Lighting
 			GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
 			GL.BindVertexArray(0);
 
+			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
 			#endregion
 
 			#region ImGUI STATS
@@ -713,14 +843,122 @@ namespace OpenTK_Lighting
 		#endregion
 
 		#region Debug GUI
+
+		private bool _viewportFullscreen = false;
+		private bool _hasSavedWindowState = false;
+		private System.Numerics.Vector2 _savedWindowPos = new(100, 100);
+		private System.Numerics.Vector2 _savedWindowSize = new(800, 600);
+		private bool _applyWindowRestore = false;
+
 		public void ImGUI_Render()
 		{
+			var io = ImGui.GetIO();
+			var viewport = ImGui.GetMainViewport();
+
+			// === Main Dockspace Window ===
+			ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+			ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
+
+			ImGuiWindowFlags hostWindowFlags = ImGuiWindowFlags.NoDocking
+				| ImGuiWindowFlags.NoTitleBar
+				| ImGuiWindowFlags.NoCollapse
+				| ImGuiWindowFlags.NoResize
+				| ImGuiWindowFlags.NoMove
+				| ImGuiWindowFlags.NoBringToFrontOnFocus
+				| ImGuiWindowFlags.NoNavFocus
+				| ImGuiWindowFlags.MenuBar;
+
+			ImGui.SetNextWindowPos(viewport.WorkPos);
+			ImGui.SetNextWindowSize(viewport.WorkSize);
+			ImGui.SetNextWindowViewport(viewport.ID);
+
+			ImGui.Begin("MainDockSpace", hostWindowFlags);
+			ImGui.PopStyleVar(2);
+
+			uint dockspaceID = ImGui.GetID("DockSpace");
+			ImGui.DockSpace(dockspaceID, System.Numerics.Vector2.Zero, ImGuiDockNodeFlags.None);
+			ImGui.End();
+
+			// === Viewport Window (optional) ===
+			ImGuiWindowFlags viewportFlags;
+			if (_viewportFullscreen)
+			{
+				viewportFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove;
+				ImGui.SetNextWindowPos(System.Numerics.Vector2.Zero);
+				ImGui.SetNextWindowSize(io.DisplaySize);
+			}
+			else
+			{
+				viewportFlags = ImGuiWindowFlags.None;
+			}
+
+			ImGui.Begin("Viewport", viewportFlags);
+			ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, System.Numerics.Vector2.Zero);
+
+			var avail = ImGui.GetContentRegionAvail();
+			float windowAspect = avail.X / avail.Y;
+			float textureAspect = (float)Size.X / Size.Y;
+
+			System.Numerics.Vector2 imageSize;
+
+			if (windowAspect > textureAspect)
+			{
+				// Window is wider than image aspect — fit height
+				imageSize.Y = avail.Y;
+				imageSize.X = imageSize.Y * textureAspect;
+			}
+			else
+			{
+				// Window is taller than image aspect — fit width
+				imageSize.X = avail.X;
+				imageSize.Y = imageSize.X / textureAspect;
+			}
+
+			// Center image
+			var cursorPos = ImGui.GetCursorPos();
+			float offsetX = (avail.X - imageSize.X) * 0.5f;
+			float offsetY = (avail.Y - imageSize.Y) * 0.5f;
+			ImGui.SetCursorPos(new System.Numerics.Vector2(cursorPos.X + offsetX, cursorPos.Y + offsetY));
+
+			var imageTopLeftScreen = ImGui.GetCursorScreenPos();
+
+			ImGui.Image((IntPtr)viewportTexture, imageSize, new System.Numerics.Vector2(0, 1), new System.Numerics.Vector2(1, 0));
+
+			ImGui.SetCursorScreenPos(new System.Numerics.Vector2(imageTopLeftScreen.X + 10, imageTopLeftScreen.Y +10));
+			if (ImGui.Button(_viewportFullscreen ? "Window" : "Fullscreen"))
+			{
+				if (!_viewportFullscreen)
+				{
+					_savedWindowPos = ImGui.GetWindowPos();
+					_savedWindowSize = ImGui.GetWindowSize();
+					_hasSavedWindowState = true;
+				}
+				else
+				{
+					_applyWindowRestore = true;
+				}
+				_viewportFullscreen = !_viewportFullscreen;
+			}
+
+			bool isDocked = ImGui.GetWindowDockID() != 0;
+			if (!_viewportFullscreen && _applyWindowRestore && _hasSavedWindowState && !isDocked)
+			{
+				ImGui.SetWindowPos(_savedWindowPos);
+				ImGui.SetWindowSize(_savedWindowSize);
+				_applyWindowRestore = false;
+			}
+
+			ImGui.PopStyleVar();
+			ImGui.End();
+
+			// === Stats ===
 			ImGui.Begin("Stats");
 			ImGui.Text($"FPS: {_fps:F2}");
 			ImGui.Text($"Frame Time: {(1000.0f / _fps):F2} ms");
 			ImGui.Text($"Draw Calls: {_drawCalls}");
 			ImGui.End();
 
+			// === Lighting ===
 			ImGui.Begin("Lighting");
 			if (ImGui.CollapsingHeader("Settings"))
 			{
@@ -732,151 +970,117 @@ namespace OpenTK_Lighting
 				ImGui.Checkbox("Use SSAO", ref useSSAO);
 				ImGui.Unindent();
 			}
+			ImGui.End();
 
-			#region Objects
-			if (ImGui.CollapsingHeader("Objects"))
+			// === Objects ===
+			ImGui.Begin("Objects");
+			if (ImGui.CollapsingHeader("Scene Objects"))
 			{
 				ImGui.Indent();
-				foreach (RenderableObject obj in _objects)
+				foreach (var obj in _objects)
 				{
-					if (ImGui.CollapsingHeader($"{obj.Name}"))
+					ImGui.PushID(obj.Name);
+
+					if (ImGui.CollapsingHeader($"Object: {obj.Name}"))
 					{
 						ImGui.Indent();
 
-						if (ImGui.CollapsingHeader($"Transform##{obj.Name}"))
+						if (ImGui.CollapsingHeader("Transform"))
 						{
 							ImGui.Indent();
-							#region Position
-							ImGui.AlignTextToFramePadding();
-							ImGui.Text("Position ");
-							ImGui.SameLine();
-							ImGui.AlignTextToFramePadding();
-							ImGui.Text("X");
+							ImGui.Text("Position");
 							ImGui.SameLine();
 							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##PosX{obj.Name}", ref obj.Position.X, 0.05f, float.MinValue, float.MaxValue, "%.2f");
+							ImGui.DragFloat("X", ref obj.Position.X, 0.05f);
+							ImGui.SameLine();
+							ImGui.SetNextItemWidth(70);
+							ImGui.DragFloat("Y", ref obj.Position.Y, 0.05f);
+							ImGui.SameLine();
+							ImGui.SetNextItemWidth(70);
+							ImGui.DragFloat("Z", ref obj.Position.Z, 0.05f);
 
-							ImGui.SameLine();
-							ImGui.Text("Y");
+							ImGui.Text("Rotation");
 							ImGui.SameLine();
 							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##PosY{obj.Name}", ref obj.Position.Y, 0.05f, float.MinValue, float.MaxValue, "%.2f");
+							ImGui.DragFloat("RX", ref obj.Rotation.X, 0.05f);
+							ImGui.SameLine();
+							ImGui.SetNextItemWidth(70);
+							ImGui.DragFloat("RY", ref obj.Rotation.Y, 0.05f);
+							ImGui.SameLine();
+							ImGui.SetNextItemWidth(70);
+							ImGui.DragFloat("RZ", ref obj.Rotation.Z, 0.05f);
 
-							ImGui.SameLine();
-							ImGui.Text("Z");
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##PosZ{obj.Name}", ref obj.Position.Z, 0.05f, float.MinValue, float.MaxValue, "%.2f");
-							#endregion
-							#region Rotation
-							ImGui.AlignTextToFramePadding();
-							ImGui.Text("Rotation ");
-							ImGui.SameLine();
-							ImGui.AlignTextToFramePadding();
-							ImGui.Text("X");
+							ImGui.Text("Scale");
 							ImGui.SameLine();
 							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##RotX{obj.Name}", ref obj.Rotation.X, 0.05f, float.MinValue, float.MaxValue, "%.2f");
-
-							ImGui.SameLine();
-							ImGui.Text("Y");
+							ImGui.DragFloat("SX", ref obj.Scale.X, 0.025f);
 							ImGui.SameLine();
 							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##RotY{obj.Name}", ref obj.Rotation.Y, 0.05f, float.MinValue, float.MaxValue, "%.2f");
-
-							ImGui.SameLine();
-							ImGui.Text("Z");
+							ImGui.DragFloat("SY", ref obj.Scale.Y, 0.025f);
 							ImGui.SameLine();
 							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##RotZ{obj.Name}", ref obj.Rotation.Z, 0.05f, float.MinValue, float.MaxValue, "%.2f");
-							#endregion
-							#region Scale
-							ImGui.AlignTextToFramePadding();
-							ImGui.Text("Scale    ");
-							ImGui.SameLine();
-							ImGui.AlignTextToFramePadding();
-							ImGui.Text("X");
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##ScaleX{obj.Name}", ref obj.Scale.X, 0.025f, float.MinValue, float.MaxValue, "%.2f");
-
-							ImGui.SameLine();
-							ImGui.Text("Y");
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##ScaleY{obj.Name}", ref obj.Scale.Y, 0.025f, float.MinValue, float.MaxValue, "%.2f");
-
-							ImGui.SameLine();
-							ImGui.Text("Z");
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat($"##ScaleZ{obj.Name}", ref obj.Scale.Z, 0.025f, float.MinValue, float.MaxValue, "%.2f");
-							#endregion
+							ImGui.DragFloat("SZ", ref obj.Scale.Z, 0.025f);
 							ImGui.Unindent();
 						}
-						ImGui.DragFloat($"Specular Strength##{obj.Name}", ref obj.specularStrength);
-						if (useColorMaps != true || obj.TextureCoordinants == null) {
+
+						ImGui.DragFloat("Specular Strength", ref obj.specularStrength);
+
+						if (!useColorMaps || obj.TextureCoordinants == null)
+						{
 							var color3 = new System.Numerics.Vector3(obj.baseColor.X, obj.baseColor.Y, obj.baseColor.Z);
-							if (ImGui.ColorEdit3($"Color##{obj.Name}", ref color3))
+							if (ImGui.ColorEdit3("Base Color", ref color3))
 							{
 								obj.baseColor = (Vector3)color3;
 							}
 						}
+
 						ImGui.Unindent();
 					}
+
+					ImGui.PopID();
 				}
 				ImGui.Unindent();
 			}
-			#endregion
+			ImGui.End();
 
-			#region Lights
-			if (ImGui.CollapsingHeader("Lights"))
+			// === Lights ===
+			ImGui.Begin("Lights");
+			if (ImGui.CollapsingHeader("Scene Lights"))
 			{
 				ImGui.Indent();
-				foreach(LightObject light in pointLights)
+				foreach (var light in pointLights)
 				{
-					if (ImGui.CollapsingHeader($"{light.Name}"))
+					ImGui.PushID(light.Name);
+					if (ImGui.CollapsingHeader($"Light: {light.Name}"))
 					{
 						ImGui.Indent();
-						ImGui.Checkbox($"Active##{light.Name}", ref light.Active);
+						ImGui.Checkbox("Active", ref light.Active);
 
-						#region Position
-						ImGui.AlignTextToFramePadding();
-						ImGui.Text("Position ");
-						ImGui.SameLine();
-						ImGui.AlignTextToFramePadding();
-						ImGui.Text("X");
+						ImGui.Text("Position");
 						ImGui.SameLine();
 						ImGui.SetNextItemWidth(70);
-						ImGui.DragFloat($"##PosX{light.Name}", ref light.Position.X, 0.05f, float.MinValue, float.MaxValue, "%.2f");
-
-						ImGui.SameLine();
-						ImGui.Text("Y");
+						ImGui.DragFloat("X", ref light.Position.X, 0.05f);
 						ImGui.SameLine();
 						ImGui.SetNextItemWidth(70);
-						ImGui.DragFloat($"##PosY{light.Name}", ref light.Position.Y, 0.05f, float.MinValue, float.MaxValue, "%.2f");
-
-						ImGui.SameLine();
-						ImGui.Text("Z");
+						ImGui.DragFloat("Y", ref light.Position.Y, 0.05f);
 						ImGui.SameLine();
 						ImGui.SetNextItemWidth(70);
-						ImGui.DragFloat($"##PosZ{light.Name}", ref light.Position.Z, 0.05f, float.MinValue, float.MaxValue, "%.2f");
-						#endregion
+						ImGui.DragFloat("Z", ref light.Position.Z, 0.05f);
 
-						System.Numerics.Vector3 lightColor = (System.Numerics.Vector3)light.Color;
-						if (ImGui.ColorEdit3($"Color##{light.Name}", ref lightColor))
+						var lightColor = (System.Numerics.Vector3)light.Color;
+						if (ImGui.ColorEdit3("Color", ref lightColor))
 						{
 							light.Color = (Vector3)lightColor;
 						}
-						ImGui.DragFloat($"Intensity##{light.Name}", ref light.Intensity, 0.05f, 0.0f, 100f, "%.2f");
-						ImGui.DragFloat($"Radius##{light.Name}", ref light.Radius, 0.05f, 0.0f, 10.0f, "%.2f");
+
+						ImGui.DragFloat("Intensity", ref light.Intensity, 0.05f, 0.0f, 100f);
+						ImGui.DragFloat("Radius", ref light.Radius, 0.05f, 0.0f, 10.0f);
 						ImGui.Unindent();
 					}
+					ImGui.PopID();
 				}
 				ImGui.Unindent();
 			}
-			#endregion
-
 			ImGui.End();
 		}
 		#endregion
