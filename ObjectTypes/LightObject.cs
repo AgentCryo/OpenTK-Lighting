@@ -14,7 +14,7 @@ namespace OpenTK_Lighting.ObjectTypes
 		public Vector3 Position = Vector3.Zero;
 
 		public bool Active = true;
-		public int ShadowMapResolution = 2048;
+		public int ShadowMapResolution = 2048/4;
 		public Vector3 Color = Vector3.One;
 		public float Intensity = 32f;
 		public float Radius = 0.4f;
