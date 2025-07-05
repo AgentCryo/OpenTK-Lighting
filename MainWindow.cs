@@ -8,10 +8,12 @@ using OpenTK.Mathematics;
 using OpenTK_Lighting.Loaders;
 using Image = OpenTK_Lighting.Loaders.Image;
 using OpenTK_Lighting.ObjectTypes;
+using System.Drawing;
+using SysVec4 = System.Numerics.Vector4;
 
 namespace OpenTK_Lighting
 {
-    internal class MainWindow : GameWindow
+	internal class MainWindow : GameWindow
 	{
 
 		private List<RenderableObject> _objects = new();
@@ -20,7 +22,7 @@ namespace OpenTK_Lighting
 		private int _vao, _vbo, _ibo;
 
 		private Shader _baseShader;
-		
+
 		private Camera _camera;
 		Matrix4 _projection;
 
@@ -86,7 +88,7 @@ namespace OpenTK_Lighting
 			bool useNormal = false,
 			bool useSpecular = false,
 			bool flipVerticalNormals = true
-		){
+		) {
 			var obj = new RenderableObject(name, geometry.verts, geometry.norms, geometry.inds, geometry.uvs);
 			if (useColor)
 				obj.colorTexture = Image.LoadTexture(GetTexturePath(objectDataName, "color.png"), Image.TextureType.Color);
@@ -423,7 +425,7 @@ namespace OpenTK_Lighting
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
 			_fsQuadVAO = GL.GenVertexArray();
-			
+
 			Random rnd = new Random();
 			for (int i = 0; i < 64; i++)
 			{
@@ -548,6 +550,96 @@ namespace OpenTK_Lighting
 			GL.Enable(EnableCap.CullFace);
 			GL.Enable(EnableCap.Multisample);
 			GL.LineWidth(1);
+
+			SetImGUIStyle();
+		}
+
+		public void SetImGUIStyle()
+		{
+			ImGuiStylePtr style = ImGui.GetStyle();
+
+			style.FrameRounding = 3.0f;
+			style.WindowRounding = 3.0f;
+			style.GrabRounding = 5.0f;
+
+			var colors = style.Colors;
+			Vector4[] imguiColors = new Vector4[]
+			{
+				new Vector4(200/255f, 220/255f, 230/255f, 1f),      // Text: soft light cyan-blue
+				new Vector4(120/255f, 130/255f, 140/255f, 1f),      // TextDisabled: muted grayish blue
+				new Vector4(18/255f, 30/255f, 38/255f, 0.95f),      // WindowBg: very dark blue-gray
+				new Vector4(0f, 0f, 0f, 0f),                         // ChildBg: transparent
+				new Vector4(25/255f, 40/255f, 50/255f, 0.95f),      // PopupBg: dark blue-gray
+				new Vector4(80/255f, 90/255f, 95/255f, 0.5f),       // Border: soft gray-blue
+				new Vector4(0f, 0f, 0f, 0f),                         // BorderShadow: transparent
+				new Vector4(35/255f, 60/255f, 90/255f, 0.55f),      // FrameBg: dark cyan-blue
+				new Vector4(45/255f, 80/255f, 125/255f, 0.45f),     // FrameBgHovered: medium cyan-blue
+				new Vector4(55/255f, 100/255f, 150/255f, 0.7f),     // FrameBgActive: stronger cyan-blue
+				new Vector4(12/255f, 22/255f, 30/255f, 1f),         // TitleBg: very dark blue-gray
+				new Vector4(35/255f, 60/255f, 80/255f, 1f),         // TitleBgActive: dark cyan-blue
+				new Vector4(0f, 0f, 0f, 0.5f),                       // TitleBgCollapsed: semi-transparent black
+				new Vector4(30/255f, 50/255f, 70/255f, 1f),         // MenuBarBg: dark cyan-blue gray
+				new Vector4(5/255f, 5/255f, 5/255f, 0.5f),           // ScrollbarBg: almost black transparent
+				new Vector4(90/255f, 95/255f, 100/255f, 1f),        // ScrollbarGrab: gray
+				new Vector4(110/255f, 115/255f, 120/255f, 1f),      // ScrollbarGrabHovered: lighter gray
+				new Vector4(55/255f, 110/255f, 155/255f, 1f),       // ScrollbarGrabActive: cyan-blue
+				new Vector4(90/255f, 95/255f, 100/255f, 0.7f),      // CheckMark: muted gray
+				new Vector4(75/255f, 90/255f, 100/255f, 0.7f),      // SliderGrab: gray-blue
+				new Vector4(55/255f, 110/255f, 155/255f, 0.7f),     // SliderGrabActive: cyan-blue
+				new Vector4(70/255f, 75/255f, 80/255f, 0.7f),       // Button: dark gray-blue
+				new Vector4(100/255f, 110/255f, 120/255f, 0.7f),    // ButtonHovered: lighter gray-blue
+				new Vector4(50/255f, 100/255f, 150/255f, 0.62f),    // ButtonActive: medium cyan-blue
+				new Vector4(95/255f, 100/255f, 105/255f, 0.62f),    // Header: muted gray-blue
+				new Vector4(75/255f, 80/255f, 85/255f, 0.62f),      // HeaderHovered: darker gray-blue
+				new Vector4(50/255f, 100/255f, 150/255f, 1f),       // HeaderActive: bright cyan-blue
+				new Vector4(80/255f, 85/255f, 90/255f, 0.5f),       // Separator: gray
+				new Vector4(20/255f, 80/255f, 140/255f, 0.75f),     // SeparatorHovered: bright cyan-blue
+				new Vector4(50/255f, 100/255f, 150/255f, 1f),       // SeparatorActive: bright cyan-blue
+				new Vector4(50/255f, 100/255f, 150/255f, 0.25f),    // ResizeGrip: light cyan-blue transparent
+				new Vector4(50/255f, 100/255f, 150/255f, 0.7f),     // ResizeGripHovered: stronger cyan-blue
+				new Vector4(50/255f, 100/255f, 150/255f, 1f),       // ResizeGripActive: strong cyan-blue
+				new Vector4(60/255f, 65/255f, 70/255f, 0.85f),      // Tab: dark gray-blue
+				new Vector4(80/255f, 90/255f, 100/255f, 0.8f),      // TabHovered: medium gray-blue
+				new Vector4(50/255f, 100/255f, 150/255f, 1f),       // TabActive: bright cyan-blue
+				new Vector4(20/255f, 30/255f, 40/255f, 0.97f),      // TabUnfocused: very dark gray-blue
+				new Vector4(30/255f, 70/255f, 100/255f, 1f),        // TabUnfocusedActive: muted cyan-blue
+				new Vector4(150/255f, 150/255f, 150/255f, 1f),      // PlotLines: soft gray
+				new Vector4(0.4f, 0.75f, 1f, 1f),                    // PlotLinesHovered: bright cyan
+				new Vector4(200/255f, 180/255f, 50/255f, 1f),       // PlotHistogram: warm yellow
+				new Vector4(1f, 0.6f, 0f, 1f),                       // PlotHistogramHovered: orange
+				new Vector4(40/255f, 40/255f, 45/255f, 1f),         // TableHeaderBg: dark gray-blue
+				new Vector4(70/255f, 75/255f, 80/255f, 1f),         // TableBorderStrong: gray-blue
+				new Vector4(55/255f, 55/255f, 60/255f, 1f),         // TableBorderLight: dark gray
+				new Vector4(0f, 0f, 0f, 0f),                         // TableRowBg: transparent
+				new Vector4(1f, 1f, 1f, 0.05f),                      // TableRowBgAlt: very subtle white tint
+				new Vector4(50/255f, 100/255f, 150/255f, 0.35f),    // TextSelectedBg: translucent cyan-blue
+				new Vector4(1f, 1f, 0f, 0.9f),                       // DragDropTarget: bright yellow
+				new Vector4(50/255f, 100/255f, 150/255f, 1f),       // NavHighlight: bright cyan-blue
+				new Vector4(1f, 1f, 1f, 0.7f),                       // NavWindowingHighlight: white translucent
+				new Vector4(0.8f, 0.8f, 0.8f, 0.2f),                 // NavWindowingDimBg: light gray transparent
+				new Vector4(0.8f, 0.8f, 0.8f, 0.35f)                 // ModalWindowDimBg: light gray semi-transparent
+			};
+
+			HashSet<int> skipIndexes = new HashSet<int>()
+			{
+				(int)ImGuiCol.DragDropTarget,
+				(int)ImGuiCol.PlotHistogramHovered,
+				(int)ImGuiCol.PlotHistogram,
+				(int)ImGuiCol.PlotLines,
+				(int)ImGuiCol.PlotLinesHovered
+			};
+
+			for (int i = 0; i < imguiColors.Length; i++)
+			{
+				if (skipIndexes.Contains(i))
+				{
+					continue;
+				}
+				else
+				{
+					//colors[i] = (SysVec4)imguiColors[i];
+				}
+			}
 		}
 		#endregion
 
@@ -914,7 +1006,6 @@ namespace OpenTK_Lighting
 				ImGui.SetWindowSize(_savedWindowSize);
 				_applyWindowRestore = false;
 			}
-
 			ImGui.PopStyleVar();
 			ImGui.End();
 			#endregion
@@ -1053,6 +1144,13 @@ namespace OpenTK_Lighting
 			ImGui.End();
 			#endregion
 		}
+
+		System.Numerics.Vector4 ColorFromHtml(string html, float alpha)
+		{
+			var c = System.Drawing.ColorTranslator.FromHtml(html);
+			return new System.Numerics.Vector4(c.R / 255f, c.G / 255f, c.B / 255f, alpha);
+		}
+
 		#endregion
 	}
 }
