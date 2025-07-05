@@ -10,13 +10,15 @@ using Image = OpenTK_Lighting.Loaders.Image;
 using OpenTK_Lighting.ObjectTypes;
 using System.Drawing;
 using SysVec4 = System.Numerics.Vector4;
+using OpenTK_Lighting.ObjectTypes.Components;
+using Object = OpenTK_Lighting.ObjectTypes.Object;
+using static System.Formats.Asn1.AsnWriter;
 
 namespace OpenTK_Lighting
 {
-	internal class MainWindow : GameWindow
+    internal class MainWindow : GameWindow
 	{
-
-		private List<RenderableObject> _objects = new();
+		public Scene scene = new();
 
 		#region Rendering Variables
 		private int _vao, _vbo, _ibo;
@@ -36,7 +38,7 @@ namespace OpenTK_Lighting
 		private bool useNormalMaps = true;
 		private bool useShadows = true;
 
-		List<LightObject> pointLights = new List<LightObject>();
+		//List<LightObject> pointLights = new List<LightObject>();
 		#endregion
 
 		#region Post Processing Variables
@@ -65,43 +67,40 @@ namespace OpenTK_Lighting
 		}
 
 		#region Load
-		public RenderableObject BoxWithFrame;
-		public RenderableObject BoxWithFrame2;
-		public RenderableObject PlayCube;
-		public RenderableObject plane;
-		public RenderableObject plane2;
-		public RenderableObject lightingText;
-		public RenderableObject decorationGizmo;
-
-		public LightObject light1 = new("light1");
-		public LightObject light2 = new("light2");
-		public LightObject light3 = new("light3");
-
-		#region Create Renderable Object
 		string basePath = @"C:\Users\chill\source\repos\OpenTK Lighting\Objects\";
-		string GetTexturePath(string objectName, string textureName) => Path.Combine(basePath, objectName, "Textures", textureName);
-		RenderableObject CreateRenderableObject(
-			string name,
+		string GetTexturePath(string objectName, string textureName) =>
+			Path.Combine(basePath, objectName, "Textures", textureName);
+
+		#region Create MeshRenderer Component
+		MeshRenderer_Component CreateMeshRendererComponent(
 			(List<float> verts, List<float> norms, List<uint> inds, List<float> uvs) geometry,
 			string objectDataName,
 			bool useColor = false,
 			bool useNormal = false,
 			bool useSpecular = false,
 			bool flipVerticalNormals = true
-		) {
-			var obj = new RenderableObject(name, geometry.verts, geometry.norms, geometry.inds, geometry.uvs);
+		)
+		{
+			var mesh = new MeshRenderer_Component(
+				geometry.verts,
+				geometry.norms,
+				geometry.inds,
+				geometry.uvs
+			);
+
 			if (useColor)
-				obj.colorTexture = Image.LoadTexture(GetTexturePath(objectDataName, "color.png"), Image.TextureType.Color);
+				mesh.ColorTexture = Image.LoadTexture(GetTexturePath(objectDataName, "color.png"), Image.TextureType.Color);
 
 			if (useSpecular)
-				obj.specularTexture = Image.LoadTexture(GetTexturePath(objectDataName, "specular.png"), Image.TextureType.Specular);
+				mesh.SpecularTexture = Image.LoadTexture(GetTexturePath(objectDataName, "specular.png"), Image.TextureType.Specular);
 
 			if (useNormal)
-				obj.normalTexture = Image.LoadTexture(GetTexturePath(objectDataName, "normal.png"), Image.TextureType.Normal);
+				mesh.NormalTexture = Image.LoadTexture(GetTexturePath(objectDataName, "normal.png"), Image.TextureType.Normal);
 
-			obj.DisposeBuffers();
-			obj.InitializeBuffers(flipVerticalNormals);
-			return obj;
+			mesh.DisposeBuffers();
+			mesh.InitializeBuffers(flipVerticalNormals);
+
+			return mesh;
 		}
 		#endregion
 
@@ -280,8 +279,10 @@ namespace OpenTK_Lighting
 			#endregion
 
 			#region Box With Frame
-			BoxWithFrame = CreateRenderableObject(
-				name: "Box With Frame",
+			var boxWithFrame = new Object();
+			boxWithFrame.Name = "Box With Frame";
+
+			var meshComponent = CreateMeshRendererComponent(
 				geometry: (cubeVertices, cubeNormals, cubeIndices, cubeTexCoords),
 				objectDataName: "BoxWithFrame",
 				useColor: true,
@@ -289,61 +290,80 @@ namespace OpenTK_Lighting
 				useSpecular: true,
 				flipVerticalNormals: false
 			);
-			BoxWithFrame.specularStrength = 8;
-			_objects.Add(BoxWithFrame);
+
+			meshComponent.SpecularStrength = 8;
+			boxWithFrame.AddComponent(meshComponent);
+
+			scene.Objects.Add(boxWithFrame);
 			#endregion
 
 			#region Play Cube
-			PlayCube = CreateRenderableObject(
-				name: "Play Cube",
+			var playCube = new Object();
+			playCube.Name = "Play Cube";
+
+			var playCubeMesh = CreateMeshRendererComponent(
 				geometry: (cubeVertices, cubeNormals, cubeIndices, cubeTexCoords),
 				objectDataName: "PlayCube",
 				useColor: true,
 				useNormal: true
 			);
-			PlayCube.Position = new Vector3(2, 0, 0);
-			_objects.Add(PlayCube);
+			playCube.AddComponent(playCubeMesh);
+			playCube.Transform.Position = new Vector3(2, 0, 0);
+
+			scene.Objects.Add(playCube);
 			#endregion
 
 			#region Floor
-			plane = CreateRenderableObject(
-				name: "Floor",
+			var floor = new Object();
+			floor.Name = "Floor";
+
+			var floorMesh = CreateMeshRendererComponent(
 				geometry: (planeVertices, planeNormals, planeIndices, planeTexCoords),
 				objectDataName: "Bricks",
 				useColor: true,
 				useNormal: true,
 				flipVerticalNormals: false
 			);
-			plane.Position = new Vector3(0, -0.5f, 0);
-			plane.specularStrength = 1;
-			_objects.Add(plane);
+			floor.AddComponent(floorMesh);
+			floor.Transform.Position = new Vector3(0, -0.5f, 0);
+			floorMesh.SpecularStrength = 1;
+
+			scene.Objects.Add(floor);
 			#endregion
 
 			#region Lighting Text
 			var (verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Lighting Text\Mesh\LightingText.obj");
-			lightingText = CreateRenderableObject(
-				name: "Lighting Text",
+			var lightingText = new Object();
+			lightingText.Name = "Lighting Text";
+
+			var lightingTextMesh = CreateMeshRendererComponent(
 				geometry: (verts, norms, inds, uvs),
 				objectDataName: "Lighting Text",
 				useColor: true
 			);
-			lightingText.Position = new Vector3(-2.5f, 0.25f, 0.55f);
-			lightingText.Scale = new Vector3(3, 3, 3);
-			lightingText.Rotation = new Vector3(0, 10.7f, 9.45f);
-			_objects.Add(lightingText);
+			lightingText.AddComponent(lightingTextMesh);
+			lightingText.Transform.Position = new Vector3(-2.5f, 0.25f, 0.55f);
+			lightingText.Transform.Scale = new Vector3(3, 3, 3);
+			lightingText.Transform.Rotation = new Vector3(0, 10.7f, 9.45f);
+
+			scene.Objects.Add(lightingText);
 			#endregion
 
 			#region Decoration Gizmo
 			(verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Decoration Gizmo\Mesh\DecorationGizmo.obj");
-			decorationGizmo = CreateRenderableObject(
-				name: "Decoration Gizmo",
+			var decorationGizmo = new Object();
+			decorationGizmo.Name = "Decoration Gizmo";
+
+			var decorationGizmoMesh = CreateMeshRendererComponent(
 				geometry: (verts, norms, inds, uvs),
 				objectDataName: "Decoration Gizmo",
 				useColor: true
 			);
-			decorationGizmo.Position = new Vector3(5f, -0.5f, -1.0f);
-			decorationGizmo.Rotation = new Vector3(0, -90 - 15, 0);
-			_objects.Add(decorationGizmo);
+			decorationGizmo.AddComponent(decorationGizmoMesh);
+			decorationGizmo.Transform.Position = new Vector3(5f, -0.5f, -1.0f);
+			decorationGizmo.Transform.Rotation = new Vector3(0, -105f, 0);
+
+			scene.Objects.Add(decorationGizmo);
 			#endregion
 
 			#endregion
@@ -353,20 +373,52 @@ namespace OpenTK_Lighting
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\vertex.glsl",
 				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\fragment.glsl"
 			);
-			light1.Position = new Vector3(0, 4, 3);
-			light1.Color = new Vector3(1, 0, 0);
-			light1.InitShadowResources();
-			pointLights.Add(light1);
 
-			light2.Position = new Vector3(0.25f, 4, 3);
-			light2.Color = new Vector3(0, 1, 0);
-			light2.InitShadowResources();
-			pointLights.Add(light2);
+			#region Light 1
+			var lightObj1 = new Object();
+			lightObj1.Name = "light1";
+			lightObj1.Transform.Position = new Vector3(0, 4, 3);
 
-			light3.Position = new Vector3(0.5f, 4, 3);
-			light3.Color = new Vector3(0, 0, 1);
-			light3.InitShadowResources();
-			pointLights.Add(light3);
+			var lightComp1 = new Light_Component();
+			lightComp1.Color = new Vector3(1, 0, 0);
+			lightComp1.Intensity = 32f;
+			lightComp1.Radius = 0.4f;
+			lightComp1.ShadowMapResolution = 2048 / 4;
+
+			lightObj1.AddComponent(lightComp1);
+			scene.Objects.Add(lightObj1);
+			#endregion
+
+			#region Light 2
+			var lightObj2 = new Object();
+			lightObj2.Name = "light2";
+			lightObj2.Transform.Position = new Vector3(0.25f, 4, 3);
+
+			var lightComp2 = new Light_Component();
+			lightComp2.Color = new Vector3(0, 1, 0);
+			lightComp2.Intensity = 32f;
+			lightComp2.Radius = 0.4f;
+			lightComp2.ShadowMapResolution = 2048 / 4;
+
+			lightObj2.AddComponent(lightComp2);
+			scene.Objects.Add(lightObj2);
+			#endregion
+
+			#region Light 3
+			var lightObj3 = new Object();
+			lightObj3.Name = "light3";
+			lightObj3.Transform.Position = new Vector3(0.5f, 4, 3);
+
+			var lightComp3 = new Light_Component();
+			lightComp3.Color = new Vector3(0, 0, 1);
+			lightComp3.Intensity = 32f;
+			lightComp3.Radius = 0.4f;
+			lightComp3.ShadowMapResolution = 2048 / 4;
+
+			lightObj3.AddComponent(lightComp3);
+			scene.Objects.Add(lightObj3);
+			#endregion
+
 			#endregion
 
 			#region Base Init
@@ -552,8 +604,11 @@ namespace OpenTK_Lighting
 			GL.LineWidth(1);
 
 			SetImGUIStyle();
+
+			scene.Load();
 		}
 
+		#region ImGui Styling
 		public void SetImGUIStyle()
 		{
 			ImGuiStylePtr style = ImGui.GetStyle();
@@ -642,17 +697,15 @@ namespace OpenTK_Lighting
 			}
 		}
 		#endregion
+		#endregion
 
 		#region Update
 		bool mouseGrabbedToggle = true;
-		float lightValue = 0;
 		protected override void OnUpdateFrame(FrameEventArgs args)
 		{
 			base.OnUpdateFrame(args);
-
-			BoxWithFrame.Rotation.Y -= (float)args.Time * 60;
-
-			foreach(LightObject light in pointLights) light.UpdateViewMatrices();
+			
+			//foreach(LightObject light in pointLights) light.UpdateViewMatrices();
 
 			if (KeyboardState.IsKeyPressed(Keys.Tab)) mouseGrabbedToggle ^= true;
 			CursorState = mouseGrabbedToggle ? CursorState.Grabbed : CursorState.Normal;
@@ -660,6 +713,8 @@ namespace OpenTK_Lighting
 
 			if (KeyboardState.IsKeyDown(Keys.Escape))
 				Close();
+
+			scene.Update((float)args.Time);
 		}
 		#endregion
 
@@ -692,19 +747,23 @@ namespace OpenTK_Lighting
 
 			_controller.Update(this, (float)args.Time);
 
+			var pointLights = scene.Objects
+				.Select(o => o.Components.OfType<Light_Component>().FirstOrDefault())
+				.Where(light => light != null)
+				.ToList();
+
 			#region Shadow
 
 			foreach (var light in pointLights)
 			{
-				if (!light.Active || !useShadows)
-					continue;
+				if (!useShadows) continue;
 
 				GL.Viewport(0, 0, light.ShadowMapResolution, light.ShadowMapResolution);
 				GL.BindFramebuffer(FramebufferTarget.Framebuffer, light.ShadowFBO);
 
 				_shadowShader.Use();
 				GL.UniformMatrix4(_shadowShader.GetUniform("uLightProjection"), false, ref light.Projection);
-				GL.Uniform3(_shadowShader.GetUniform("uLightPos"), ref light.Position);
+				GL.Uniform3(_shadowShader.GetUniform("uLightPos"), light.getPosition);
 
 				int location = GL.GetUniformLocation(_shadowShader.Handle, "uLightView");
 				GL.UniformMatrix4(location, light.ViewMatrices.Length, false, ref light.ViewMatrices[0].Row0.X);
@@ -712,10 +771,13 @@ namespace OpenTK_Lighting
 				GL.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, light.DepthCubeMap, 0);
 				GL.Clear(ClearBufferMask.DepthBufferBit);
 
-				foreach (var obj in _objects)
+				foreach (var obj in scene.Objects)
 				{
-					obj.Render(_shadowShader, 6);
-					_drawCalls++;
+					var meshRenderer = obj.Components.OfType<MeshRenderer_Component>().FirstOrDefault();
+					if(meshRenderer != null) {
+						meshRenderer.Render(_shadowShader, 6);
+						_drawCalls++;
+					}
 				}
 
 				GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
@@ -744,7 +806,7 @@ namespace OpenTK_Lighting
 				GL.BindTexture(TextureTarget.TextureCubeMap, light.DepthCubeMap);
 				GL.Uniform1(_baseShader.GetUniform($"shadowMaps[{i}]"), i);
 
-				GL.Uniform3(_baseShader.GetUniform($"lightPositions[{i}]"), ref light.Position);
+				GL.Uniform3(_baseShader.GetUniform($"lightPositions[{i}]"), light.getPosition);
 				GL.Uniform3(_baseShader.GetUniform($"lightColors[{i}]"), ref light.Color);
 				GL.Uniform1(_baseShader.GetUniform($"lightIntensities[{i}]"), light.Intensity);
 				GL.Uniform1(_baseShader.GetUniform($"lightActives[{i}]"), light.Active ? 1 : 0);
@@ -756,15 +818,19 @@ namespace OpenTK_Lighting
 			GL.Uniform1(_baseShader.GetUniform("useShadows"), useShadows ? 1 : 0);
 			GL.Uniform1(_baseShader.GetUniform("material.shininess"), 32.0f);
 
-			foreach (var obj in _objects)
+			foreach (var obj in scene.Objects)
 			{
+				var meshRenderer = obj.Components.OfType<MeshRenderer_Component>().FirstOrDefault();
+				if (meshRenderer == null)
+					continue;
+
 				#region Color
-				GL.Uniform3(_baseShader.GetUniform("material.color"), obj.baseColor);
-				if (obj.colorTexture != -1)
+				GL.Uniform3(_baseShader.GetUniform("material.color"), meshRenderer.BaseColor);
+				if (meshRenderer.ColorTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useColorTexture"), useColorMaps ? 1 : 0);
 					GL.ActiveTexture(TextureUnit.Texture1 + pointLights.Count);
-					GL.BindTexture(TextureTarget.Texture2D, obj.colorTexture);
+					GL.BindTexture(TextureTarget.Texture2D, meshRenderer.ColorTexture);
 					GL.Uniform1(_baseShader.GetUniform("material.colorTexture"), 1 + pointLights.Count);
 				}
 				else
@@ -773,11 +839,11 @@ namespace OpenTK_Lighting
 				}
 				#endregion
 				#region Specular
-				if (obj.specularTexture != -1)
+				if (meshRenderer.SpecularTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useSpecularTexture"), useSpecularMaps ? 1 : 0);
 					GL.ActiveTexture(TextureUnit.Texture2 + pointLights.Count);
-					GL.BindTexture(TextureTarget.Texture2D, obj.specularTexture);
+					GL.BindTexture(TextureTarget.Texture2D, meshRenderer.SpecularTexture);
 					GL.Uniform1(_baseShader.GetUniform("material.specularTexture"), 2 + pointLights.Count);
 				}
 				else
@@ -786,11 +852,11 @@ namespace OpenTK_Lighting
 				}
 				#endregion
 				#region Normal
-				if (obj.normalTexture != -1)
+				if (meshRenderer.NormalTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), useNormalMaps ? 1 : 0);
 					GL.ActiveTexture(TextureUnit.Texture3 + pointLights.Count);
-					GL.BindTexture(TextureTarget.Texture2D, obj.normalTexture);
+					GL.BindTexture(TextureTarget.Texture2D, meshRenderer.NormalTexture);
 					GL.Uniform1(_baseShader.GetUniform("material.normalTexture"), 3 + pointLights.Count);
 				}
 				else
@@ -798,8 +864,8 @@ namespace OpenTK_Lighting
 					GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), 0);
 				}
 				#endregion
-				GL.Uniform1(_baseShader.GetUniform("material.specular"), obj.specularStrength);
-				obj.Render(_baseShader);
+				GL.Uniform1(_baseShader.GetUniform("material.specular"), meshRenderer.SpecularStrength);
+				meshRenderer.Render(_baseShader);
 				_drawCalls++;
 			}
 
@@ -911,6 +977,7 @@ namespace OpenTK_Lighting
 		private System.Numerics.Vector2 _savedWindowSize = new(800, 600);
 		private bool _applyWindowRestore = false;
 
+		private Object _selectedObject = null;
 		public void ImGUI_Render()
 		{
 			var io = ImGui.GetIO();
@@ -1031,116 +1098,32 @@ namespace OpenTK_Lighting
 			}
 			ImGui.End();
 
-			#region Objects
-			ImGui.Begin("Objects");
-			if (ImGui.CollapsingHeader("Scene Objects"))
+			#region Hierarchy
+			ImGui.Begin("Hierarchy");
+			foreach (var obj in scene.Objects)
 			{
-				ImGui.Indent();
-				foreach (var obj in _objects)
+				ImGui.PushID(obj.Name);
+				if (ImGui.Selectable(obj.Name, _selectedObject == obj))
 				{
-					ImGui.PushID(obj.Name);
-
-					if (ImGui.CollapsingHeader($"Object: {obj.Name}"))
-					{
-						ImGui.Indent();
-
-						if (ImGui.CollapsingHeader("Transform"))
-						{
-							ImGui.Indent();
-							ImGui.Text("Position");
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("X", ref obj.Position.X, 0.05f);
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("Y", ref obj.Position.Y, 0.05f);
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("Z", ref obj.Position.Z, 0.05f);
-
-							ImGui.Text("Rotation");
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("RX", ref obj.Rotation.X, 0.05f);
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("RY", ref obj.Rotation.Y, 0.05f);
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("RZ", ref obj.Rotation.Z, 0.05f);
-
-							ImGui.Text("Scale");
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("SX", ref obj.Scale.X, 0.025f);
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("SY", ref obj.Scale.Y, 0.025f);
-							ImGui.SameLine();
-							ImGui.SetNextItemWidth(70);
-							ImGui.DragFloat("SZ", ref obj.Scale.Z, 0.025f);
-							ImGui.Unindent();
-						}
-
-						ImGui.DragFloat("Specular Strength", ref obj.specularStrength);
-
-						if (!useColorMaps || obj.TextureCoordinants == null)
-						{
-							var color3 = new System.Numerics.Vector3(obj.baseColor.X, obj.baseColor.Y, obj.baseColor.Z);
-							if (ImGui.ColorEdit3("Base Color", ref color3))
-							{
-								obj.baseColor = (Vector3)color3;
-							}
-						}
-
-						ImGui.Unindent();
-					}
-
-					ImGui.PopID();
+					_selectedObject = obj;
 				}
-				ImGui.Unindent();
+				ImGui.PopID();
 			}
 			ImGui.End();
 			#endregion
 
-			#region Lights
-			ImGui.Begin("Lights");
-			if (ImGui.CollapsingHeader("Scene Lights"))
+			#region Inspector
+			ImGui.Begin("Inspector");
+
+			if (_selectedObject != null)
 			{
-				ImGui.Indent();
-				foreach (var light in pointLights)
-				{
-					ImGui.PushID(light.Name);
-					if (ImGui.CollapsingHeader($"Light: {light.Name}"))
-					{
-						ImGui.Indent();
-						ImGui.Checkbox("Active", ref light.Active);
-
-						ImGui.Text("Position");
-						ImGui.SameLine();
-						ImGui.SetNextItemWidth(70);
-						ImGui.DragFloat("X", ref light.Position.X, 0.05f);
-						ImGui.SameLine();
-						ImGui.SetNextItemWidth(70);
-						ImGui.DragFloat("Y", ref light.Position.Y, 0.05f);
-						ImGui.SameLine();
-						ImGui.SetNextItemWidth(70);
-						ImGui.DragFloat("Z", ref light.Position.Z, 0.05f);
-
-						var lightColor = (System.Numerics.Vector3)light.Color;
-						if (ImGui.ColorEdit3("Color", ref lightColor))
-						{
-							light.Color = (Vector3)lightColor;
-						}
-
-						ImGui.DragFloat("Intensity", ref light.Intensity, 0.05f, 0.0f, 100f);
-						ImGui.DragFloat("Radius", ref light.Radius, 0.05f, 0.0f, 10.0f);
-						ImGui.Unindent();
-					}
-					ImGui.PopID();
-				}
-				ImGui.Unindent();
+				_selectedObject.InspectorIMGUI();
 			}
+			else
+			{
+				ImGui.Text("No object selected.");
+			}
+
 			ImGui.End();
 			#endregion
 		}

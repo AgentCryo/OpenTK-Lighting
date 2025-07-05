@@ -1,45 +1,73 @@
-﻿using OpenTK.Mathematics;
-using System;
-using System.Collections.Generic;
+﻿using ImGuiNET;
 using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using OpenTK_Lighting.Loaders;
 
-namespace OpenTK_Lighting.ObjectTypes
+using System;
+using System.Collections.Generic;
+
+namespace OpenTK_Lighting.ObjectTypes.Components
 {
-	public class RenderableObject
+	internal class MeshRenderer_Component : Component
 	{
-		public string Name;
-
-		public Vector3 Position;
-		public Vector3 Rotation;
-		public Vector3 Scale = Vector3.One;
-
 		public List<float> Vertices = new();
 		public List<uint> Indices = new();
-		public List<float> TextureCoordinants = new();
+		public List<float> TextureCoordinates = new();
 		public List<float> Normals = new();
-
 		public List<float> Tangents = new();
 
-		public Vector3 baseColor = Vector3.One;
-		public float specularStrength = 0.5f;
-		public int colorTexture = -1;
-		public int specularTexture = -1;
-		public int normalTexture = -1;
+		public Vector3 BaseColor = Vector3.One;
+		public float SpecularStrength = 0.5f;
+		public int ColorTexture = -1;
+		public int SpecularTexture = -1;
+		public int NormalTexture = -1;
 
 		private int _vao, _vbo, _ibo;
 
-		public RenderableObject(string name, List<float> vertices = null, List<float> normals = null, List<uint> indices = null, List<float> textureCoordinants = null)
+		public MeshRenderer_Component(List<float> vertices, List<float> normals, List<uint> indices, List<float> textureCoords = null)
 		{
-			Name = name;
 			Vertices = vertices;
 			Normals = normals;
 			Indices = indices;
-			TextureCoordinants = textureCoordinants;
+			TextureCoordinates = textureCoords;
+		}
 
-			if (vertices != null || normals != null || indices != null)
+		public override void Load()
+		{
+			InitializeBuffers(false);
+		}
+
+		public override void Update(float dt)
+		{
+			// Nothing for now
+		}
+
+		public override void InspectorIMGUI()
+		{
+			if (ImGui.CollapsingHeader("Mesh Renderer"))
 			{
-				InitializeBuffers(false);
+				ImGui.Indent();
+
+				// Base Color
+				var color = new System.Numerics.Vector3(BaseColor.X, BaseColor.Y, BaseColor.Z);
+				if (ImGui.ColorEdit3("Base Color", ref color))
+				{
+					BaseColor = new Vector3(color.X, color.Y, color.Z);
+				}
+
+				// Specular Strength slider
+				float spec = SpecularStrength;
+				if (ImGui.DragFloat("Specular Strength", ref spec, 0.1f, 0f, 256f))
+				{
+					SpecularStrength = spec;
+				}
+
+				// Texture info
+				ImGui.Text($"Color Texture: {(ColorTexture != -1 ? ColorTexture.ToString() : "None")}");
+				ImGui.Text($"Specular Texture: {(SpecularTexture != -1 ? SpecularTexture.ToString() : "None")}");
+				ImGui.Text($"Normal Texture: {(NormalTexture != -1 ? NormalTexture.ToString() : "None")}");
+
+				ImGui.Unindent();
 			}
 		}
 
@@ -51,7 +79,7 @@ namespace OpenTK_Lighting.ObjectTypes
 
 			GL.BindVertexArray(_vao);
 
-			if (normalTexture != -1)
+			if (NormalTexture != -1)
 				ComputeTangents(Normals, flipVerticalNormals);
 
 			List<float> vertexData = new();
@@ -61,13 +89,10 @@ namespace OpenTK_Lighting.ObjectTypes
 			{
 				vertexData.AddRange(Vertices.GetRange(i * 3, 3));
 				vertexData.AddRange(Normals.GetRange(i * 3, 3));
-				if (TextureCoordinants != null)
-					vertexData.AddRange(TextureCoordinants.GetRange(i * 2, 2));
-
-				if (normalTexture != -1)
-				{
+				if (TextureCoordinates != null)
+					vertexData.AddRange(TextureCoordinates.GetRange(i * 2, 2));
+				if (NormalTexture != -1)
 					vertexData.AddRange(Tangents.GetRange(i * 4, 4));
-				}
 			}
 
 			GL.BindBuffer(BufferTarget.ArrayBuffer, _vbo);
@@ -76,7 +101,7 @@ namespace OpenTK_Lighting.ObjectTypes
 			GL.BindBuffer(BufferTarget.ElementArrayBuffer, _ibo);
 			GL.BufferData(BufferTarget.ElementArrayBuffer, Indices.Count * sizeof(uint), Indices.ToArray(), BufferUsageHint.StaticDraw);
 
-			int stride = TextureCoordinants != null ? (normalTexture != -1 ? 12 : 8) : 6;
+			int stride = TextureCoordinates != null ? (NormalTexture != -1 ? 12 : 8) : 6;
 
 			GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride * sizeof(float), 0);
 			GL.EnableVertexAttribArray(0);
@@ -84,13 +109,13 @@ namespace OpenTK_Lighting.ObjectTypes
 			GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride * sizeof(float), 3 * sizeof(float));
 			GL.EnableVertexAttribArray(1);
 
-			if (TextureCoordinants != null)
+			if (TextureCoordinates != null)
 			{
 				GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride * sizeof(float), 6 * sizeof(float));
 				GL.EnableVertexAttribArray(2);
 			}
 
-			if (normalTexture != -1)
+			if (NormalTexture != -1)
 			{
 				GL.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, false, stride * sizeof(float), 8 * sizeof(float));
 				GL.EnableVertexAttribArray(3);
@@ -101,31 +126,23 @@ namespace OpenTK_Lighting.ObjectTypes
 
 		public void DisposeBuffers()
 		{
-			if (_vao != 0)
-			{
-				GL.DeleteVertexArray(_vao);
-				_vao = 0;
-			}
-			if (_vbo != 0)
-			{
-				GL.DeleteBuffer(_vbo);
-				_vbo = 0;
-			}
-			if (_ibo != 0)
-			{
-				GL.DeleteBuffer(_ibo);
-				_ibo = 0;
-			}
+			if (_vao != 0) GL.DeleteVertexArray(_vao);
+			if (_vbo != 0) GL.DeleteBuffer(_vbo);
+			if (_ibo != 0) GL.DeleteBuffer(_ibo);
+
+			_vao = _vbo = _ibo = 0;
 		}
 
 		public void Render(Shader shader, int instanceCount = 1)
 		{
+			var transform = Owner.Transform;
+
 			Matrix4 model =
-				Matrix4.CreateScale(Scale) *
-				Matrix4.CreateRotationX(MathHelper.DegreesToRadians(Rotation.X)) *
-				Matrix4.CreateRotationY(MathHelper.DegreesToRadians(Rotation.Y)) *
-				Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(Rotation.Z)) *
-				Matrix4.CreateTranslation(Position);
+				Matrix4.CreateScale(transform.Scale) *
+				Matrix4.CreateRotationX(MathHelper.DegreesToRadians(transform.Rotation.X)) *
+				Matrix4.CreateRotationY(MathHelper.DegreesToRadians(transform.Rotation.Y)) *
+				Matrix4.CreateRotationZ(MathHelper.DegreesToRadians(transform.Rotation.Z)) *
+				Matrix4.CreateTranslation(transform.Position);
 
 			GL.UniformMatrix4(shader.GetUniform("uModel"), false, ref model);
 
@@ -140,10 +157,10 @@ namespace OpenTK_Lighting.ObjectTypes
 			Tangents.Clear();
 			Tangents.AddRange(new float[vertexCount * 4]);
 
-			if (flipV)
+			if (flipV && TextureCoordinates != null)
 			{
-				for (int i = 1; i < TextureCoordinants.Count; i += 2)
-					TextureCoordinants[i] = 1.0f - TextureCoordinants[i];
+				for (int i = 1; i < TextureCoordinates.Count; i += 2)
+					TextureCoordinates[i] = 1.0f - TextureCoordinates[i];
 			}
 
 			Vector3[] tanAccum = new Vector3[vertexCount];
@@ -159,9 +176,9 @@ namespace OpenTK_Lighting.ObjectTypes
 				Vector3 v1 = new Vector3(Vertices[i1 * 3], Vertices[i1 * 3 + 1], Vertices[i1 * 3 + 2]);
 				Vector3 v2 = new Vector3(Vertices[i2 * 3], Vertices[i2 * 3 + 1], Vertices[i2 * 3 + 2]);
 
-				Vector2 uv0 = new Vector2(TextureCoordinants[i0 * 2], TextureCoordinants[i0 * 2 + 1]);
-				Vector2 uv1 = new Vector2(TextureCoordinants[i1 * 2], TextureCoordinants[i1 * 2 + 1]);
-				Vector2 uv2 = new Vector2(TextureCoordinants[i2 * 2], TextureCoordinants[i2 * 2 + 1]);
+				Vector2 uv0 = new Vector2(TextureCoordinates[i0 * 2], TextureCoordinates[i0 * 2 + 1]);
+				Vector2 uv1 = new Vector2(TextureCoordinates[i1 * 2], TextureCoordinates[i1 * 2 + 1]);
+				Vector2 uv2 = new Vector2(TextureCoordinates[i2 * 2], TextureCoordinates[i2 * 2 + 1]);
 
 				Vector3 edge1 = v1 - v0;
 				Vector3 edge2 = v2 - v0;
@@ -169,8 +186,7 @@ namespace OpenTK_Lighting.ObjectTypes
 				Vector2 deltaUV2 = uv2 - uv0;
 
 				float denom = deltaUV1.X * deltaUV2.Y - deltaUV2.X * deltaUV1.Y;
-				if (Math.Abs(denom) < 1e-6f)
-					continue;
+				if (Math.Abs(denom) < 1e-6f) continue;
 
 				float f = 1.0f / denom;
 
@@ -205,10 +221,6 @@ namespace OpenTK_Lighting.ObjectTypes
 				Tangents[i * 4 + 2] = t.Z;
 				Tangents[i * 4 + 3] = handedness;
 			}
-		}
-
-		public virtual void Update(float deltaTime)
-		{
 		}
 	}
 }
