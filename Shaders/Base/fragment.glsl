@@ -1,4 +1,4 @@
-﻿#version 330 core
+﻿#version 430 core
 
 // ====== STRUCTS ======
 struct Material {
@@ -25,7 +25,7 @@ layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 NormalBuffer;
 
 // ====== UNIFORMS ======
-#define MAX_POINT_LIGHTS 8
+#define MAX_LIGHTS 16
 uniform vec3 uLightPos;
 uniform samplerCube shadowMap;
 uniform vec3 uCameraPos;
@@ -34,13 +34,45 @@ uniform bool useShadows;
 
 uniform Material material;
 
-uniform samplerCube shadowMaps[MAX_POINT_LIGHTS];
-uniform vec3 lightPositions[MAX_POINT_LIGHTS];
-uniform vec3 lightColors[MAX_POINT_LIGHTS];
-uniform float lightIntensities[MAX_POINT_LIGHTS];
-uniform bool lightActives[MAX_POINT_LIGHTS];
-uniform float lightSizes[MAX_POINT_LIGHTS];
-uniform int numPointLights;
+struct Light {
+    int type;
+    int shadowMapResolution;
+    int padding0;
+    int padding1;
+
+    vec3 position;
+    float padding2;
+
+    vec3 direction;
+    float padding3;
+
+    vec3 color;
+    float padding4;
+
+    float intensity;
+    float radius;
+    float padding5;
+    float padding6;
+};
+
+
+layout(std430, binding = 2) buffer Lights
+{
+    Light lights[MAX_LIGHTS];
+};
+
+uniform bool lightActives[MAX_LIGHTS];
+uniform int numLights;
+
+uniform samplerCube shadowCubeMaps[MAX_LIGHTS]; // For point light shadows
+uniform sampler2D shadow2DMaps[MAX_LIGHTS];     // For directional light shadows
+uniform mat4 lightViews[MAX_LIGHTS];            // For directional light shadows
+uniform mat4 lightProjections[MAX_LIGHTS];      // For directional light shadows
+
+//uniform vec3 lightPositions[MAX_LIGHTS];
+//uniform vec3 lightColors[MAX_LIGHTS];
+//uniform float lightIntensities[MAX_LIGHTS];
+//uniform float lightSizes[MAX_LIGHTS];
 
 // ====== CONSTANTS ======
 const int NUM_BLOCKER_SAMPLES = 8;
@@ -75,6 +107,8 @@ float penumbraSize(float receiverDepth, float blockerDepth, float lightRadius) {
 }
 
 // ====== SHADOW FUNCTIONS ======
+
+// ====== POINT LIGHT SHADOWS ======
 float avgBlockerDepth(vec3 fragToLight, samplerCube cubeMap, float searchRadius, vec3 fragPos) {
     float currentDepth = length(fragToLight);
     vec3 L = normalize(fragToLight);
@@ -130,19 +164,88 @@ float PCFShadow(vec3 fragToLight, samplerCube cubeMap, float filterRadius, vec3 
     return shadow / float(NUM_PCF_SAMPLES);
 }
 
-float ShadowCalculation(vec3 fragPos, vec3 lightPos, samplerCube cubeMap, vec3 fragNormal, float lightRadius) {
-    vec3 fragToLight = fragPos - lightPos;
-    float receiverDepth = length(fragToLight);
+// ====== DIRECTIONAL LIGHT SHADOWS ======
+float avgBlockerDepth_Dir(sampler2D shadowMap, vec2 uv, float searchRadius, float currentDepth) {
+    float avgBlocker = 0.0;
+    int blockerCount = 0;
+    float texelSize = 1.0 / float(textureSize(shadowMap, 0).x); // assuming square shadow map
 
-    float searchRadius = 0.05 * receiverDepth;
-    float avgBlocker = avgBlockerDepth(fragToLight, cubeMap, searchRadius, fragPos);
+    for (int i = 0; i < NUM_BLOCKER_SAMPLES; ++i) {
+        // Note: radius is already in UV units here, so do NOT multiply by texelSize again
+        vec2 offset = vogelDiskSample(i, NUM_BLOCKER_SAMPLES, searchRadius, vec3(uv, 0.0));
+        float sampleDepth = texture(shadowMap, uv + offset).r;
 
-    if (avgBlocker == -1.0) return 0.0;
+        if (sampleDepth < currentDepth) {
+            avgBlocker += sampleDepth;
+            blockerCount++;
+        }
+    }
 
-    float filterRadius = penumbraSize(receiverDepth, avgBlocker, lightRadius);
-    filterRadius = clamp(filterRadius, 0.001, 0.2 * receiverDepth);
+    if (blockerCount == 0) return -1.0;
+    return avgBlocker / float(blockerCount);
+}
 
-    return PCFShadow(fragToLight, cubeMap, filterRadius, fragNormal, fragPos);
+float PCFShadow_Dir(sampler2D shadowMap, vec2 uv, float filterRadius, float currentDepth, float bias) {
+    float shadow = 0.0;
+    float texelSize = 1.0 / float(textureSize(shadowMap, 0).x);
+
+    for (int i = 0; i < NUM_PCF_SAMPLES; ++i) {
+        vec2 offset = vogelDiskSample(i, NUM_PCF_SAMPLES, filterRadius, vec3(uv, 0.0));
+        float sampleDepth = texture(shadowMap, uv + offset).r;
+
+        float visibility = smoothstep(currentDepth - bias, currentDepth + bias, sampleDepth);
+        shadow += visibility;
+    }
+    return shadow / float(NUM_PCF_SAMPLES);
+}
+
+// ====== MAIN SHADOW CALC ======
+float ShadowCalculation(int lightIndex, vec3 fragPos, vec3 normal) {
+    Light light = lights[lightIndex];
+
+    switch(light.type) {
+        case 0:
+    // Point light shadow (cubemap)
+            vec3 fragToLight = fragPos - light.position;
+            float receiverDepth = length(fragToLight);
+            float searchRadius = 0.05 * receiverDepth;
+            float avgBlocker = avgBlockerDepth(fragToLight, shadowCubeMaps[lightIndex], searchRadius, fragPos);
+
+            if (avgBlocker == -1.0) return 0.0;
+
+            float filterRadius = penumbraSize(receiverDepth, avgBlocker, light.radius);
+            filterRadius = clamp(filterRadius, 0.001, 0.2 * receiverDepth);
+
+            return PCFShadow(fragToLight, shadowCubeMaps[lightIndex], filterRadius, normal, fragPos);
+
+        case 1: {
+                vec4 fragPosLightSpace = lightProjections[lightIndex] * lightViews[lightIndex] * vec4(fragPos, 1.0);
+                vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+                vec2 uv = projCoords.xy * 0.5 + 0.5;
+
+                if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0 || projCoords.z > 1.0)
+                return 0.0;
+
+                float currentDepth = projCoords.z * 0.5 + 0.5;
+
+                float avgBlocker2D = avgBlockerDepth_Dir(shadow2DMaps[lightIndex], uv, 0.01, currentDepth);
+                if (avgBlocker2D == -1.0)
+                return 0.0;
+
+                float filterRadius2D = clamp(0.01 * light.radius, 0.001, 0.05);
+
+                vec3 lightDir = normalize(-light.direction);
+                float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.001);
+
+                float shadow = PCFShadow_Dir(shadow2DMaps[lightIndex], uv, filterRadius2D, currentDepth, bias);
+
+                float penumbra = clamp((currentDepth - avgBlocker2D) * 100.0, 0.0, 1.0);
+                float softShadow = shadow * (1.0 - penumbra);
+                return 1.0 - softShadow;
+            }
+        default:
+            return 0.0;
+    }
 }
 
 // ====== MATERIAL HELPERS ======
@@ -178,42 +281,41 @@ void main() {
     vec3 specularMap = GetMaterialSpecular(material, TexCoords);
     vec3 finalLighting = vec3(0.0);
 
-    for (int i = 0; i < numPointLights; ++i) {
+    for (int i = 0; i < numLights; ++i) {
         if (!lightActives[i]) continue;
+        Light light = lights[i];
+        vec3 lightDir;
+        float attenuation = 1.0;
+        vec3 ambient, diffuse, specular;
 
-        vec3 lightPos = lightPositions[i];
-        vec3 lightColor = lightColors[i] * lightIntensities[i];
-        vec3 lightDir = normalize(lightPos - FragPos);
-        vec3 reflectDir = reflect(-lightDir, norm);
-
-        // Ambient
-        vec3 ambient = ambientStrength * lightColor;
-
-        // Diffuse
-        float diff = max(dot(norm, lightDir), 0.0);
-        vec3 diffuse = diff * lightColor;
-
-        // Specular
-        vec3 halfwayDir = normalize(lightDir + viewDir);
-        float spec = pow(max(dot(norm, halfwayDir), 0.0), material.shininess);
-        float specularStrength = dot(specularMap, vec3(0.2126, 0.7152, 0.0722));
-        vec3 specular = specularStrength * spec * lightColor;
-
-        // Shadow
-        float shadow = 0.0;
-        if(useShadows) {
-            shadow = ShadowCalculation(FragPos, lightPos, shadowMaps[i], norm, lightSizes[i]);
+        switch(light.type) {
+            case 0:
+                lightDir = normalize(light.position - FragPos);
+                float distance = length(light.position - FragPos);
+                attenuation = 1.0 / (distance * distance);
+                ambient = ambientStrength * light.color * light.intensity * attenuation;
+                diffuse = max(dot(norm, lightDir), 0.0) * light.color * light.intensity * attenuation;
+                break;
+            case 1:
+                lightDir = normalize(-light.direction);
+                ambient = ambientStrength * light.color * light.intensity;
+                diffuse = max(dot(norm, lightDir), 0.0) * light.color * light.intensity;
+                break;
         }
 
-        // Attenuation
-        float distance = length(lightPos - FragPos);
-        float attenuation = 1.0 / (distance * distance);
-        ambient *= attenuation;
-        diffuse *= attenuation;
-        specular *= attenuation;
+        vec3 viewDir = normalize(uCameraPos - FragPos);
+        vec3 halfwayDir = normalize(lightDir + viewDir); 
+        float spec = pow(max(dot(norm, halfwayDir), 0.0), material.shininess);
+        vec3 specularMap = GetMaterialSpecular(material, TexCoords);
+        float specularStrength = dot(specularMap, vec3(0.2126, 0.7152, 0.0722));
+        specular = specularStrength * spec * light.color * light.intensity * attenuation;
 
-        // Final lighting
-        vec3 lighting = ambient + (1.0 - (useShadows ? shadow : 0.0)) * (diffuse + specular);
+        float shadow = 0.0;
+        if(useShadows) {
+            shadow = ShadowCalculation(i, FragPos, norm);
+        }
+
+        vec3 lighting = ambient + (1.0 - shadow) * (diffuse + specular);
         finalLighting += lighting;
     }
 

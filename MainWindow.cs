@@ -13,11 +13,185 @@ using SysVec4 = System.Numerics.Vector4;
 using OpenTK_Lighting.ObjectTypes.Components;
 using Object = OpenTK_Lighting.ObjectTypes.Object;
 using static System.Formats.Asn1.AsnWriter;
+using System.ComponentModel;
+using static OpenTK_Lighting.ObjectTypes.Components.Light_Component;
+using System.Runtime.InteropServices;
+using OpenTK_Lighting.Helpers;
+using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
 
 namespace OpenTK_Lighting
 {
     internal class MainWindow : GameWindow
 	{
+		
+		#region Cube Data
+		List<float> cubeVertices = new List<float>
+		{
+			// Front face
+			-0.5f, -0.5f,  0.5f,
+			0.5f, -0.5f,  0.5f,
+			0.5f,  0.5f,  0.5f,
+			-0.5f,  0.5f,  0.5f,
+
+			// Back face
+			0.5f, -0.5f, -0.5f,
+			-0.5f, -0.5f, -0.5f,
+			-0.5f,  0.5f, -0.5f,
+			0.5f,  0.5f, -0.5f,
+
+			// Left face
+			-0.5f, -0.5f, -0.5f,
+			-0.5f, -0.5f,  0.5f,
+			-0.5f,  0.5f,  0.5f,
+			-0.5f,  0.5f, -0.5f,
+
+			// Right face
+			0.5f, -0.5f,  0.5f,
+			0.5f, -0.5f, -0.5f,
+			0.5f,  0.5f, -0.5f,
+			0.5f,  0.5f,  0.5f,
+
+			// Top face
+			-0.5f,  0.5f,  0.5f,
+			0.5f,  0.5f,  0.5f,
+			0.5f,  0.5f, -0.5f,
+			-0.5f,  0.5f, -0.5f,
+
+			// Bottom face
+			-0.5f, -0.5f, -0.5f,
+			0.5f, -0.5f, -0.5f,
+			0.5f, -0.5f,  0.5f,
+			-0.5f, -0.5f,  0.5f
+		};
+
+		List<float> cubeNormals = new List<float>
+		{
+			// Front
+			0f, 0f, 1f,
+			0f, 0f, 1f,
+			0f, 0f, 1f,
+			0f, 0f, 1f,
+
+			// Back
+			0f, 0f, -1f,
+			0f, 0f, -1f,
+			0f, 0f, -1f,
+			0f, 0f, -1f,
+
+			// Left
+			-1f, 0f, 0f,
+			-1f, 0f, 0f,
+			-1f, 0f, 0f,
+			-1f, 0f, 0f,
+
+			// Right
+			1f, 0f, 0f,
+			1f, 0f, 0f,
+			1f, 0f, 0f,
+			1f, 0f, 0f,
+
+			// Top
+			0f, 1f, 0f,
+			0f, 1f, 0f,
+			0f, 1f, 0f,
+			0f, 1f, 0f,
+
+			// Bottom
+			0f, -1f, 0f,
+			0f, -1f, 0f,
+			0f, -1f, 0f,
+			0f, -1f, 0f
+		};
+
+		List<uint> cubeIndices = new List<uint>
+		{
+			// Front
+			0, 1, 2, 2, 3, 0,
+			// Back
+			4, 5, 6, 6, 7, 4,
+			// Left
+			8, 9,10,10,11, 8,
+			// Right
+			12,13,14,14,15,12,
+			// Top
+			16,17,18,18,19,16,
+			// Bottom
+			20,21,22,22,23,20
+		};
+		List<float> cubeTexCoords = new List<float>
+		{
+			// Front face
+			0f, 0f,
+			1f, 0f,
+			1f, 1f,
+			0f, 1f,
+
+			// Back face
+			0f, 0f,
+			1f, 0f,
+			1f, 1f,
+			0f, 1f,
+
+			// Left face
+			0f, 0f,
+			1f, 0f,
+			1f, 1f,
+			0f, 1f,
+
+			// Right face
+			0f, 0f,
+			1f, 0f,
+			1f, 1f,
+			0f, 1f,
+
+			// Top face
+			0f, 0f,
+			1f, 0f,
+			1f, 1f,
+			0f, 1f,
+
+			// Bottom face
+			0f, 0f,
+			1f, 0f,
+			1f, 1f,
+			0f, 1f
+		};
+
+		#endregion
+		#region Plane Data
+		List<float> planeVertices = new List<float>
+		{
+			// Positions (XZ-plane)
+			-10f, 0f, -10f,  // Bottom-left
+			10f, 0f, -10f,  // Bottom-right
+			10f, 0f,  10f,  // Top-right
+			-10f, 0f,  10f   // Top-left
+		};
+
+		List<float> planeNormals = new List<float>
+		{
+			// Upward-facing normals
+			0f, 1f, 0f,
+			0f, 1f, 0f,
+			0f, 1f, 0f,
+			0f, 1f, 0f
+		};
+
+		List<uint> planeIndices = new List<uint>
+		{
+			2, 1, 0,
+			0, 3, 2
+		};
+		List<float> planeTexCoords = new List<float>
+		{
+			0f, 0f,
+			5f, 0f,
+			5f, 5f,
+			0f, 5f,
+		};
+
+		#endregion
+		
 		public Scene scene = new();
 
 		#region Rendering Variables
@@ -38,7 +212,8 @@ namespace OpenTK_Lighting
 		private bool useNormalMaps = true;
 		private bool useShadows = true;
 
-		//List<LightObject> pointLights = new List<LightObject>();
+		int _lightSSBO;
+		const int MAX_LIGHTS = 16;
 		#endregion
 
 		#region Post Processing Variables
@@ -109,174 +284,6 @@ namespace OpenTK_Lighting
 			base.OnLoad();
 
 			#region Objects
-
-			#region Cube Data
-			List<float> cubeVertices = new List<float>
-			{
-				// Front face
-				-0.5f, -0.5f,  0.5f,
-				0.5f, -0.5f,  0.5f,
-				0.5f,  0.5f,  0.5f,
-				-0.5f,  0.5f,  0.5f,
-
-				// Back face
-				0.5f, -0.5f, -0.5f,
-				-0.5f, -0.5f, -0.5f,
-				-0.5f,  0.5f, -0.5f,
-				0.5f,  0.5f, -0.5f,
-
-				// Left face
-				-0.5f, -0.5f, -0.5f,
-				-0.5f, -0.5f,  0.5f,
-				-0.5f,  0.5f,  0.5f,
-				-0.5f,  0.5f, -0.5f,
-
-				// Right face
-				0.5f, -0.5f,  0.5f,
-				0.5f, -0.5f, -0.5f,
-				0.5f,  0.5f, -0.5f,
-				0.5f,  0.5f,  0.5f,
-
-				// Top face
-				-0.5f,  0.5f,  0.5f,
-				0.5f,  0.5f,  0.5f,
-				0.5f,  0.5f, -0.5f,
-				-0.5f,  0.5f, -0.5f,
-
-				// Bottom face
-				-0.5f, -0.5f, -0.5f,
-				0.5f, -0.5f, -0.5f,
-				0.5f, -0.5f,  0.5f,
-				-0.5f, -0.5f,  0.5f
-			};
-
-			List<float> cubeNormals = new List<float>
-			{
-				// Front
-				0f, 0f, 1f,
-				0f, 0f, 1f,
-				0f, 0f, 1f,
-				0f, 0f, 1f,
-
-				// Back
-				0f, 0f, -1f,
-				0f, 0f, -1f,
-				0f, 0f, -1f,
-				0f, 0f, -1f,
-
-				// Left
-				-1f, 0f, 0f,
-				-1f, 0f, 0f,
-				-1f, 0f, 0f,
-				-1f, 0f, 0f,
-
-				// Right
-				1f, 0f, 0f,
-				1f, 0f, 0f,
-				1f, 0f, 0f,
-				1f, 0f, 0f,
-
-				// Top
-				0f, 1f, 0f,
-				0f, 1f, 0f,
-				0f, 1f, 0f,
-				0f, 1f, 0f,
-
-				// Bottom
-				0f, -1f, 0f,
-				0f, -1f, 0f,
-				0f, -1f, 0f,
-				0f, -1f, 0f
-			};
-
-			List<uint> cubeIndices = new List<uint>
-			{
-				// Front
-				0, 1, 2, 2, 3, 0,
-				// Back
-				4, 5, 6, 6, 7, 4,
-				// Left
-				8, 9,10,10,11, 8,
-				// Right
-				12,13,14,14,15,12,
-				// Top
-				16,17,18,18,19,16,
-				// Bottom
-				20,21,22,22,23,20
-			};
-			List<float> cubeTexCoords = new List<float>
-			{
-				// Front face
-				0f, 0f,
-				1f, 0f,
-				1f, 1f,
-				0f, 1f,
-
-				// Back face
-				0f, 0f,
-				1f, 0f,
-				1f, 1f,
-				0f, 1f,
-
-				// Left face
-				0f, 0f,
-				1f, 0f,
-				1f, 1f,
-				0f, 1f,
-
-				// Right face
-				0f, 0f,
-				1f, 0f,
-				1f, 1f,
-				0f, 1f,
-
-				// Top face
-				0f, 0f,
-				1f, 0f,
-				1f, 1f,
-				0f, 1f,
-
-				// Bottom face
-				0f, 0f,
-				1f, 0f,
-				1f, 1f,
-				0f, 1f
-			};
-
-			#endregion
-			#region Plane Data
-			List<float> planeVertices = new List<float>
-			{
-				// Positions (XZ-plane)
-				-10f, 0f, -10f,  // Bottom-left
-				10f, 0f, -10f,  // Bottom-right
-				10f, 0f,  10f,  // Top-right
-				-10f, 0f,  10f   // Top-left
-			};
-
-			List<float> planeNormals = new List<float>
-			{
-				// Upward-facing normals
-				0f, 1f, 0f,
-				0f, 1f, 0f,
-				0f, 1f, 0f,
-				0f, 1f, 0f
-			};
-
-			List<uint> planeIndices = new List<uint>
-			{
-				2, 1, 0,
-				0, 3, 2
-			};
-			List<float> planeTexCoords = new List<float>
-			{
-				0f, 0f,
-				5f, 0f,
-				5f, 5f,
-				0f, 5f,
-			};
-
-			#endregion
 
 			#region Box With Frame
 			var boxWithFrame = new Object();
@@ -378,12 +385,14 @@ namespace OpenTK_Lighting
 			var lightObj1 = new Object();
 			lightObj1.Name = "light1";
 			lightObj1.Transform.Position = new Vector3(0, 4, 3);
-
+			
 			var lightComp1 = new Light_Component();
-			lightComp1.Color = new Vector3(1, 0, 0);
-			lightComp1.Intensity = 32f;
-			lightComp1.Radius = 0.4f;
-			lightComp1.ShadowMapResolution = 2048 / 4;
+			lightComp1.Active = true;
+			lightComp1.lightData.type = (int)LightType.Point;
+			lightComp1.lightData.color = new Vector3(1, 0, 0);
+			lightComp1.lightData.intensity = 32f;
+			lightComp1.lightData.radius = 0.4f;
+			lightComp1.lightData.shadowMapResolution = 2048 / 4;
 
 			lightObj1.AddComponent(lightComp1);
 			scene.Objects.Add(lightObj1);
@@ -395,10 +404,12 @@ namespace OpenTK_Lighting
 			lightObj2.Transform.Position = new Vector3(0.25f, 4, 3);
 
 			var lightComp2 = new Light_Component();
-			lightComp2.Color = new Vector3(0, 1, 0);
-			lightComp2.Intensity = 32f;
-			lightComp2.Radius = 0.4f;
-			lightComp2.ShadowMapResolution = 2048 / 4;
+			lightComp2.Active = true;
+			lightComp2.lightData.type = (int)LightType.Point;
+			lightComp2.lightData.color = new Vector3(0, 1, 0);
+			lightComp2.lightData.intensity = 32f;
+			lightComp2.lightData.radius = 0.4f;
+			lightComp2.lightData.shadowMapResolution = 2048 / 4;
 
 			lightObj2.AddComponent(lightComp2);
 			scene.Objects.Add(lightObj2);
@@ -410,15 +421,38 @@ namespace OpenTK_Lighting
 			lightObj3.Transform.Position = new Vector3(0.5f, 4, 3);
 
 			var lightComp3 = new Light_Component();
-			lightComp3.Color = new Vector3(0, 0, 1);
-			lightComp3.Intensity = 32f;
-			lightComp3.Radius = 0.4f;
-			lightComp3.ShadowMapResolution = 2048 / 4;
+			lightComp3.Active = true;
+			lightComp3.lightData.type = (int)LightType.Point;
+			lightComp3.lightData.color = new Vector3(0, 0, 1);
+			lightComp3.lightData.intensity = 32f;
+			lightComp3.lightData.radius = 0.4f;
+			lightComp3.lightData.shadowMapResolution = 2048 / 4;
 
 			lightObj3.AddComponent(lightComp3);
 			scene.Objects.Add(lightObj3);
 			#endregion
 
+			//var dirLightObj = new Object();
+			//dirLightObj.Name = "Directional Light";
+			//dirLightObj.Transform.Position = new Vector3(0.5f, 4, 3);
+			//dirLightObj.Transform.Rotation = new Vector3(75.0f, 0, 0);
+
+			//var lightCompd = new Light_Component();
+			//lightCompd.lightData.type = (int)LightType.Directional;
+			//lightCompd.lightData.color = new Vector3(1, 1, 1);
+			//lightCompd.lightData.intensity = 5f;
+			//lightCompd.lightData.radius = 0.4f;
+			//lightCompd.lightData.shadowMapResolution = 2048 / 2;
+
+			//dirLightObj.AddComponent(lightCompd);
+			//scene.Objects.Add(dirLightObj);
+
+			GL.GenBuffers(1, out _lightSSBO);
+			GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _lightSSBO);
+			GL.BufferData(BufferTarget.ShaderStorageBuffer, Marshal.SizeOf<LightData>() * MAX_LIGHTS, IntPtr.Zero, BufferUsageHint.DynamicDraw);
+			GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _lightSSBO);
+
+			GL.BindBuffer(BufferTarget.ShaderStorageBuffer, 0);
 			#endregion
 
 			#region Base Init
@@ -747,35 +781,49 @@ namespace OpenTK_Lighting
 
 			_controller.Update(this, (float)args.Time);
 
-			var pointLights = scene.Objects
+			var lights = scene.Objects
 				.Select(o => o.Components.OfType<Light_Component>().FirstOrDefault())
 				.Where(light => light != null)
 				.ToList();
 
 			#region Shadow
-
-			foreach (var light in pointLights)
+			foreach (var light in lights)
 			{
 				if (!useShadows) continue;
 
-				GL.Viewport(0, 0, light.ShadowMapResolution, light.ShadowMapResolution);
+				GL.Viewport(0, 0, light.lightData.shadowMapResolution, light.lightData.shadowMapResolution);
 				GL.BindFramebuffer(FramebufferTarget.Framebuffer, light.ShadowFBO);
 
 				_shadowShader.Use();
+
 				GL.UniformMatrix4(_shadowShader.GetUniform("uLightProjection"), false, ref light.Projection);
-				GL.Uniform3(_shadowShader.GetUniform("uLightPos"), light.getPosition);
+				switch(light.lightData.type)
+				{
+					case ((int)LightType.Point):
+						GL.Uniform1(_shadowShader.GetUniform("uLightType"), 0); // POINT_LIGHT
 
-				int location = GL.GetUniformLocation(_shadowShader.Handle, "uLightView");
-				GL.UniformMatrix4(location, light.ViewMatrices.Length, false, ref light.ViewMatrices[0].Row0.X);
+						GL.Uniform3(_shadowShader.GetUniform("uLightPos"), light.getPosition);
 
-				GL.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, light.DepthCubeMap, 0);
+						int location = GL.GetUniformLocation(_shadowShader.Handle, "uLightView");
+						GL.UniformMatrix4(location, light.ViewMatrices.Length, false, ref light.ViewMatrices[0].Row0.X);
+
+						GL.FramebufferTexture(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, light.ShadowCubeMap, 0);
+						break;
+					case ((int)LightType.Directional):
+						GL.Uniform1(_shadowShader.GetUniform("uLightType"), 1); // DIRECTIONAL_LIGHT
+
+						GL.UniformMatrix4(_shadowShader.GetUniform("uDirectionalLightView"), false, ref light.DirectionalViewMatrix);
+
+						GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, light.ShadowMap2D, 0);
+						break;
+				}
 				GL.Clear(ClearBufferMask.DepthBufferBit);
 
 				foreach (var obj in scene.Objects)
 				{
 					var meshRenderer = obj.Components.OfType<MeshRenderer_Component>().FirstOrDefault();
 					if(meshRenderer != null) {
-						meshRenderer.Render(_shadowShader, 6);
+						meshRenderer.Render(_shadowShader, light.lightData.type == (int)LightType.Point ? 6 : 1);
 						_drawCalls++;
 					}
 				}
@@ -785,7 +833,7 @@ namespace OpenTK_Lighting
 			#endregion
 
 			#region Base Rendering
-
+			UnbindTextures();
 			GL.Viewport(0, 0, Size.X, Size.Y);
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, PostProcessing_FBO);
 			GL.DrawBuffers(2, new DrawBuffersEnum[] { DrawBuffersEnum.ColorAttachment0, DrawBuffersEnum.ColorAttachment1 });
@@ -796,22 +844,56 @@ namespace OpenTK_Lighting
 			GL.UniformMatrix4(_baseShader.GetUniform("uView"), false, ref view);
 			GL.UniformMatrix4(_baseShader.GetUniform("uProjection"), false, ref _projection);
 
-			GL.Uniform1(_baseShader.GetUniform("numPointLights"), pointLights.Count);
+			GL.Uniform1(_baseShader.GetUniform("numLights"), lights.Count);
 
-			for (int i = 0; i < pointLights.Count; i++)
+			for (int i = 0; i < MAX_LIGHTS; i++)
 			{
-				var light = pointLights[i];
-
-				GL.ActiveTexture(TextureUnit.Texture0 + i);
-				GL.BindTexture(TextureTarget.TextureCubeMap, light.DepthCubeMap);
-				GL.Uniform1(_baseShader.GetUniform($"shadowMaps[{i}]"), i);
-
-				GL.Uniform3(_baseShader.GetUniform($"lightPositions[{i}]"), light.getPosition);
-				GL.Uniform3(_baseShader.GetUniform($"lightColors[{i}]"), ref light.Color);
-				GL.Uniform1(_baseShader.GetUniform($"lightIntensities[{i}]"), light.Intensity);
-				GL.Uniform1(_baseShader.GetUniform($"lightActives[{i}]"), light.Active ? 1 : 0);
-				GL.Uniform1(_baseShader.GetUniform($"lightSizes[{i}]"), light.Radius);
+				GL.Uniform1(_baseShader.GetUniform($"shadowCubeMaps[{i}]"), MAX_LIGHTS);
+				GL.Uniform1(_baseShader.GetUniform($"shadow2DMaps[{i}]"), MAX_LIGHTS + 1);
 			}
+
+			LightData[] lightDataArray = new LightData[lights.Count];
+			for (int i = 0; i < lights.Count; i++)
+			{
+				var light = lights[i];
+
+				GL.Uniform1(_baseShader.GetUniform($"lightActives[{i}]"), light.Active ? 1 : 0);
+
+				lightDataArray[i] = new LightData
+				{
+					type = light.lightData.type,
+					shadowMapResolution = light.lightData.shadowMapResolution,
+					position = light.getPosition,
+					direction = light.lightData.direction,
+					color = light.lightData.color,
+					intensity = light.lightData.intensity,
+					radius = light.lightData.radius
+				};
+				switch ((LightType)light.lightData.type)
+				{
+					case LightType.Point:
+						GL.ActiveTexture(TextureUnit.Texture0 + i);
+						GL.BindTexture(TextureTarget.TextureCubeMap, light.ShadowCubeMap);
+						GL.Uniform1(_baseShader.GetUniform($"shadowCubeMaps[{i}]"), i);
+						break;
+
+					case LightType.Directional:
+						GL.ActiveTexture(TextureUnit.Texture0 + i);
+						GL.BindTexture(TextureTarget.Texture2D, light.ShadowMap2D);
+						GL.Uniform1(_baseShader.GetUniform($"shadow2DMaps[{i}]"), i);
+
+						GL.UniformMatrix4(_baseShader.GetUniform($"lightViews[{i}]"), false, ref light.DirectionalViewMatrix);
+						GL.UniformMatrix4(_baseShader.GetUniform($"lightProjections[{i}]"), false, ref light.Projection);
+						break;
+
+					default:
+						// TODO: warn about unknown light types.
+						break;
+				}
+
+			}
+
+			if(lightDataArray.Count() > 0) UploadLightDataSSBO(lightDataArray);
 
 			GL.Uniform3(_baseShader.GetUniform("uCameraPos"), ref _camera.Position);
 			GL.Uniform1(_baseShader.GetUniform("normalView"), normalsView ? 1 : 0);
@@ -829,9 +911,9 @@ namespace OpenTK_Lighting
 				if (meshRenderer.ColorTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useColorTexture"), useColorMaps ? 1 : 0);
-					GL.ActiveTexture(TextureUnit.Texture1 + pointLights.Count);
+					GL.ActiveTexture(TextureUnit.Texture1 + lights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, meshRenderer.ColorTexture);
-					GL.Uniform1(_baseShader.GetUniform("material.colorTexture"), 1 + pointLights.Count);
+					GL.Uniform1(_baseShader.GetUniform("material.colorTexture"), 1 + lights.Count);
 				}
 				else
 				{
@@ -842,9 +924,9 @@ namespace OpenTK_Lighting
 				if (meshRenderer.SpecularTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useSpecularTexture"), useSpecularMaps ? 1 : 0);
-					GL.ActiveTexture(TextureUnit.Texture2 + pointLights.Count);
+					GL.ActiveTexture(TextureUnit.Texture2 + lights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, meshRenderer.SpecularTexture);
-					GL.Uniform1(_baseShader.GetUniform("material.specularTexture"), 2 + pointLights.Count);
+					GL.Uniform1(_baseShader.GetUniform("material.specularTexture"), 2 + lights.Count);
 				}
 				else
 				{
@@ -855,9 +937,9 @@ namespace OpenTK_Lighting
 				if (meshRenderer.NormalTexture != -1)
 				{
 					GL.Uniform1(_baseShader.GetUniform("material.useNormalTexture"), useNormalMaps ? 1 : 0);
-					GL.ActiveTexture(TextureUnit.Texture3 + pointLights.Count);
+					GL.ActiveTexture(TextureUnit.Texture3 + lights.Count);
 					GL.BindTexture(TextureTarget.Texture2D, meshRenderer.NormalTexture);
-					GL.Uniform1(_baseShader.GetUniform("material.normalTexture"), 3 + pointLights.Count);
+					GL.Uniform1(_baseShader.GetUniform("material.normalTexture"), 3 + lights.Count);
 				}
 				else
 				{
@@ -870,7 +952,6 @@ namespace OpenTK_Lighting
 			}
 
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-
 			#endregion
 
 			#region MSAA Resolve (Blit multisampled FBO to single-sample FBO)
@@ -901,7 +982,6 @@ namespace OpenTK_Lighting
 				BlitFramebufferFilter.Nearest);
 
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-
 			#endregion
 
 			#region Post Processing
@@ -947,7 +1027,6 @@ namespace OpenTK_Lighting
 			GL.BindVertexArray(0);
 
 			GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-
 			#endregion
 
 			#region ImGUI STATS
@@ -966,6 +1045,40 @@ namespace OpenTK_Lighting
 			_controller.Render();
 
 			SwapBuffers();
+		}
+		public unsafe void UploadLightDataSSBO(LightData[] lights)
+		{
+			GL.BindBuffer(BufferTarget.ShaderStorageBuffer, _lightSSBO);
+			int size = lights.Length * Marshal.SizeOf<LightData>();
+
+			fixed (LightData* ptr = &lights[0])
+			{
+				GL.BufferSubData(BufferTarget.ShaderStorageBuffer,
+								 IntPtr.Zero,
+								 size,
+								 (IntPtr)ptr);
+			}
+
+			GL.BindBufferBase(BufferRangeTarget.ShaderStorageBuffer, 2, _lightSSBO);
+		}
+
+		public void UnbindTextures()
+		{
+			int maxTextureUnits;
+			GL.GetInteger(GetPName.MaxCombinedTextureImageUnits, out maxTextureUnits);
+
+			for (int i = 0; i < maxTextureUnits; i++)
+			{
+				GL.ActiveTexture(TextureUnit.Texture0 + i);
+
+				GL.BindTexture(TextureTarget.Texture2D, 0);
+
+				GL.BindTexture(TextureTarget.TextureCubeMap, 0);
+				//GL.BindTexture(TextureTarget.Texture3D, 0);
+				//GL.BindTexture(TextureTarget.Texture2DArray, 0);
+				GL.BindTexture(TextureTarget.Texture2D, 0);
+			}
+
 		}
 		#endregion
 
@@ -1100,12 +1213,86 @@ namespace OpenTK_Lighting
 
 			#region Hierarchy
 			ImGui.Begin("Hierarchy");
+
+			if (ImGui.BeginPopupContextItem("hierarchy_context"))
+			{
+				if (ImGui.BeginMenu("Create"))
+				{
+					if (ImGui.BeginMenu("Object")) // Generates an object with a Mesh Render Component
+					{
+						if (ImGui.MenuItem("Cube"))
+						{
+							int cubeCount = scene.Objects.Count(o => o.Name.Contains("Cube"));
+							var cube = new Object();
+							cube.Name = $"Cube {cubeCount+1}";
+							var meshComponent = CreateMeshRendererComponent(
+								geometry: (cubeVertices, cubeNormals, cubeIndices, cubeTexCoords),
+								objectDataName: "",
+								flipVerticalNormals: false
+							);
+							cube.AddComponent(meshComponent);
+							scene.Objects.Add(cube);
+						}
+						if (ImGui.MenuItem("Plane"))
+						{
+							int planeCount = scene.Objects.Count(o => o.Name.Contains("Plane"));
+							var plane = new Object();
+							plane.Name = $"Plane {planeCount+1}";
+							var meshComponent = CreateMeshRendererComponent(
+								geometry: (planeVertices, planeNormals, planeIndices, planeTexCoords),
+								objectDataName: "",
+								flipVerticalNormals: false
+							);
+							plane.AddComponent(meshComponent);
+							scene.Objects.Add(plane);
+						}
+						ImGui.EndMenu();
+					}
+					if (ImGui.BeginMenu("Light")) // Generates an object with Light Component
+					{
+						if (ImGui.MenuItem("Point Light"))
+						{
+							int pointLightCount = scene.Objects.Count(o => o.Name.Contains("Point Light"));
+							var lightObj = new Object();
+							string extra = (pointLightCount == 0) ? (" ") : (pointLightCount).ToString();
+							lightObj.Name = $"Point Light {extra}";
+							lightObj.Transform.Position = new Vector3(0, 0, 0);
+
+							var lightComp = new Light_Component();
+							lightComp.Active = true;
+							lightComp.lightData.type = (int)LightType.Point;
+							lightComp.lightData.color = new Vector3(1, 1, 1);
+							lightComp.lightData.intensity = 32f;
+							lightComp.lightData.radius = 0.4f;
+							lightComp.lightData.shadowMapResolution = 2048 / 4;
+							
+							lightObj.AddComponent(lightComp);
+							lightComp.InitShadowResources();
+								
+							scene.Objects.Add(lightObj);
+						}
+						ImGui.EndMenu();
+					}
+					ImGui.EndMenu();
+				}
+				ImGui.EndPopup();
+			}
+			if (ImGui.IsWindowHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+				ImGui.OpenPopup("hierarchy_context");
+			
 			foreach (var obj in scene.Objects)
 			{
 				ImGui.PushID(obj.Name);
 				if (ImGui.Selectable(obj.Name, _selectedObject == obj))
 				{
 					_selectedObject = obj;
+				}
+				if (obj.ObjectContexMenu(ref scene.Objects, true))
+				{
+					//if (_selectedObject == obj) _selectedObject == null;
+					ImGui.PopID();
+					ImGui.End();
+					return;
 				}
 				ImGui.PopID();
 			}
@@ -1117,7 +1304,7 @@ namespace OpenTK_Lighting
 
 			if (_selectedObject != null)
 			{
-				_selectedObject.InspectorIMGUI();
+				_selectedObject.InspectorIMGUI(ref scene.Objects);
 			}
 			else
 			{

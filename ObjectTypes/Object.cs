@@ -12,11 +12,13 @@ namespace OpenTK_Lighting.ObjectTypes
     public class Object
     {
 		public string Name;
+		string renameBuffer;
+		Boolean openRename = false;
+		
 		public Transform Transform = new Transform();
 
 		public List<Component> Components = new();
-
-		#region Component Calls
+		
 		public virtual void Load()
         {
 			foreach (var c in Components)
@@ -32,9 +34,47 @@ namespace OpenTK_Lighting.ObjectTypes
 				c.Update(deltaTime);
 			}
 		}
-		public virtual void InspectorIMGUI()
+
+		public void Delete(ref List<Object> objects)
+		{
+			Components.Clear();
+			objects.Remove(this);
+		}
+		
+		public virtual void InspectorIMGUI(ref List<Object> objects)
         {
 			ImGui.Text($"Object: {Name}");
+
+			ObjectContexMenu(ref objects);
+			
+			if (openRename)
+			{
+				ImGui.OpenPopup("rename_popup");
+				openRename = false;
+			}
+			if (ImGui.BeginPopup("rename_popup"))
+			{
+				ImGui.Text("Rename:");
+				if (ImGui.InputText("##rename", ref renameBuffer, 100, ImGuiInputTextFlags.EnterReturnsTrue))
+				{
+					Name = renameBuffer;
+					ImGui.CloseCurrentPopup();
+				}
+
+				if (ImGui.Button("OK"))
+				{
+					Name = renameBuffer;
+					ImGui.CloseCurrentPopup();
+				}
+				ImGui.SameLine();
+				if (ImGui.Button("Cancel"))
+				{
+					ImGui.CloseCurrentPopup();
+				}
+
+				ImGui.EndPopup();
+			}
+			
 			if (ImGui.CollapsingHeader("Transform"))
 			{
 				ImGui.Indent();
@@ -44,8 +84,37 @@ namespace OpenTK_Lighting.ObjectTypes
 			foreach (var c in Components)
 				c.InspectorIMGUI();
 		}
-		#endregion
 
+		public bool ObjectContexMenu(ref List<Object> objects, bool useItem = false)
+		{
+			if (ImGui.BeginPopupContextItem("object_context"))
+			{
+				if (ImGui.MenuItem("Rename"))
+				{
+					openRename = true;
+					renameBuffer = Name;
+					ImGui.EndPopup();
+					return false;
+				}
+				if (ImGui.MenuItem("Delete"))
+				{
+					this.Delete(ref objects);
+					ImGui.EndPopup();
+					return true;
+				}
+				ImGui.EndPopup();
+			}
+
+			if (useItem) {
+				if (ImGui.IsItemHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+					ImGui.OpenPopup("object_context");
+			} else {
+				if (ImGui.IsWindowHovered() && ImGui.IsMouseReleased(ImGuiMouseButton.Right))
+					ImGui.OpenPopup("object_context");
+			}
+			return false;
+		}
+		
 		#region Helpers
 		public void AddComponent(Component component)
 		{

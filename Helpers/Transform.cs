@@ -12,6 +12,7 @@ namespace OpenTK_Lighting.Helpers
 
 		public Transform Parent = null;
 		public List<Transform> Children = new List<Transform>();
+		public Vector3 Forward => Vector3.Transform(-Vector3.UnitZ, Quaternion.FromEulerAngles(Rotation));
 
 		public Matrix4 LocalMatrix
 		{
