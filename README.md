@@ -10,8 +10,7 @@ The scene has three lights, one red, one green, and one blue. That is what's mak
 
 <img width="1919" height="1079" alt="Screenshot 2026-01-29 135717" src="https://github.com/user-attachments/assets/f8ac4dda-8a2e-4f03-b6a4-a26b78cfdb3b" />
 
-<img width="1919" height="1079" alt="Screenshot 2026-01-29 135717" src="https://github.com/user-attachments/assets/db073f1c-3c62-4009-87d6-7755a48ced67" />
-
+<img width="1919" height="1079" alt="Screenshot 2026-01-29 135743" src="https://github.com/user-attachments/assets/44e1ad0f-e493-4cff-93cd-b8581f393611" />
 
 ## 📦 Project Structure
 
