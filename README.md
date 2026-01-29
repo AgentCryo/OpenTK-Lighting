@@ -1,7 +1,17 @@
 ﻿# OpenTK Lighting
 
+GitHub doesn't save models, so if you want to load this on your computer, use this link: https://drive.google.com/file/d/1YqhS0SpB4NTV52VaMRsN8vQzu-VGJzTA/view?usp=sharing. 
+
 This project is built with **OpenTK** and focuses on lighting, shaders, and resource management.  
 Please do not copy or reuse the code directly. If you find it helpful, feel free to learn from it or adapt ideas with attribution. (Though the code might be a bit messy and unoptimized)
+
+The scene has three lights, one red, one green, and one blue. That is what's making the chromatic aberration look.
+<img width="1919" height="1079" alt="Screenshot 2026-01-29 135609" src="https://github.com/user-attachments/assets/4442cda7-6c12-4980-9810-c8591a4ffe57" />
+
+<img width="1919" height="1079" alt="Screenshot 2026-01-29 135717" src="https://github.com/user-attachments/assets/f8ac4dda-8a2e-4f03-b6a4-a26b78cfdb3b" />
+
+<img width="1919" height="1079" alt="Screenshot 2026-01-29 135717" src="https://github.com/user-attachments/assets/db073f1c-3c62-4009-87d6-7755a48ced67" />
+
 
 ## 📦 Project Structure
 
