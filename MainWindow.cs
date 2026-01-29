@@ -242,7 +242,7 @@ namespace OpenTK_Lighting
 		}
 
 		#region Load
-		string basePath = @"C:\Users\chill\source\repos\OpenTK Lighting\Objects\";
+		string basePath = @".\Objects";
 		string GetTexturePath(string objectName, string textureName) =>
 			Path.Combine(basePath, objectName, "Textures", textureName);
 
@@ -339,7 +339,7 @@ namespace OpenTK_Lighting
 			#endregion
 
 			#region Lighting Text
-			var (verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Lighting Text\Mesh\LightingText.obj");
+			var (verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@".\Objects\Lighting Text\Mesh\LightingText.obj");
 			var lightingText = new Object();
 			lightingText.Name = "Lighting Text";
 
@@ -357,7 +357,7 @@ namespace OpenTK_Lighting
 			#endregion
 
 			#region Decoration Gizmo
-			(verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@"C:\Users\chill\source\repos\OpenTK Lighting\Objects\Decoration Gizmo\Mesh\DecorationGizmo.obj");
+			(verts, inds, uvs, norms) = OBJ_Parser.ParseOBJFile(@".\Objects\Decoration Gizmo\Mesh\DecorationGizmo.obj");
 			var decorationGizmo = new Object();
 			decorationGizmo.Name = "Decoration Gizmo";
 
@@ -377,8 +377,8 @@ namespace OpenTK_Lighting
 
 			#region Light Init
 			_shadowShader = new Shader(
-				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\vertex.glsl",
-				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Shadow\fragment.glsl"
+				@".\Shaders\Shadow\vertex.glsl",
+				@".\Shaders\Shadow\fragment.glsl"
 			);
 
 			#region Light 1
@@ -457,8 +457,8 @@ namespace OpenTK_Lighting
 
 			#region Base Init
 			_baseShader = new Shader(
-				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Base\vertex.glsl",
-				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\Base\fragment.glsl"
+				@".\Shaders\Base\vertex.glsl",
+				@".\Shaders\Base\fragment.glsl"
 			);
 
 			_camera = new Camera(new Vector3(0, 0, 10));
@@ -472,8 +472,8 @@ namespace OpenTK_Lighting
 
 			#region Post Processing Init
 			_postProcessingShader = new Shader(
-				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\PostProcessing\vertex.glsl",
-				@"C:\Users\chill\source\repos\OpenTK Lighting\Shaders\PostProcessing\fragment.glsl"
+				@".\Shaders\PostProcessing\vertex.glsl",
+				@".\Shaders\PostProcessing\fragment.glsl"
 			);
 			int samples = 4;
 

@@ -25,7 +25,7 @@ layout(location = 0) out vec4 FragColor;
 layout(location = 1) out vec4 NormalBuffer;
 
 // ====== UNIFORMS ======
-#define MAX_LIGHTS 16
+#define MAX_LIGHTS 8
 uniform vec3 uLightPos;
 uniform samplerCube shadowMap;
 uniform vec3 uCameraPos;
